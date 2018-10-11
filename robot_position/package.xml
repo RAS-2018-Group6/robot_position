@@ -47,6 +47,10 @@
   <run_depend>rospy</run_depend>
   <run_depend>std_msgs</run_depend>
 
+<build_depend>actionlib</build_depend>
+<build_depend>actionlib_msgs</build_depend>
+
+
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
