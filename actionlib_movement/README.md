@@ -15,3 +15,7 @@ The client subscribes to 2 topics:
 	destination: we send a destination point and it tells the server
 
 The server subscribes to pose to know where the robot is and publishes velocities in the twist message so that the motors move.
+
+-------------------------
+
+I also tried to create a launchfile, but I'm not sure if it works, or if Icreatedit correctly.
