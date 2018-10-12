@@ -1,3 +1,5 @@
+#ifndef movement_class.h
+#define movement_class.h
 #include <ros/ros.h>
 #include <actionlib/server/simple_action_server.h> //Action library used from implementing simple actions
 #include <actionlib_movement/MovementAction.h>
@@ -5,9 +7,8 @@
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Pose.h>
 #include "path_creator.h"
-#include "movement_class.h"
 
-/*
+
 class MovementAction
 {
 protected:
@@ -110,16 +111,6 @@ public:
   }
 
 
-};*/
 
-
-int main(int argc, char** argv)
-{
-  ros::init(argc, argv, "movement");
-
-  MovementAction movement("movement");
-  ros::spin();
-
-  return 0;
-}
-
+};
+#endif

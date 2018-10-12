@@ -1,4 +1,6 @@
 //Hay que poner en el fichero cpp #include "math.h"
+#ifndef path_creator.h
+#define path_creator.h
 class path{
 	private:
 		double m, k;
@@ -55,4 +57,4 @@ class path{
 		
 	
 };
-
+#endif
