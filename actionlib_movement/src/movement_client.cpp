@@ -49,13 +49,17 @@ int main (int argc, char **argv)
   //wait for the action to return
   bool obstacle_on;
 
-  if (!obstacle_on)
+  if (obstacle_on)
   {
-    actionlib::SimpleClientGoalState state = ac.getState();
-    ROS_INFO("Action finished: %s",state.toString().c_str());
+  
+  	//The goal should be cancelled here
+  	ac.cancelGoal();
+  	ROS_INFO  ("The goal has been cancelled");
+    //actionlib::SimpleClientGoalState state = ac.getState();
+    //ROS_INFO("Action finished: %s",state.toString().c_str());
   }
   else
-    ROS_INFO("Action did not finish before the time out.");
+    //ROS_INFO("Action did not finish before the time out.");
 
   //exit
   return 0;
