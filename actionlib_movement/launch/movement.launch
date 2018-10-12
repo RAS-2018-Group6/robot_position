@@ -1,0 +1,11 @@
+<launch>
+
+ 
+  <node pkg="actionlib_movement" type="movement_client" name="movement_client"/>
+
+  <node pkg="actionlib_movement" type="movement_server" name="movement_server"/>
+
+  <node pkg="actionlib_movement" type="pose" name="pose"/>
+
+</launch>
+	
