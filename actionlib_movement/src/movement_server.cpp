@@ -7,6 +7,7 @@
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Pose.h>
 #include "create_path.cpp"
+#include <std_msgs/Bool.h>
 
 
 class MovementAction
@@ -22,12 +23,13 @@ private:
   actionlib_movement::MovementGoal goal_;
   ros::Publisher pub_vel;
   ros::Subscriber sub_pose;
+  ros::Subscriber pub_obstacle;
 
 	//Path mypath;
     geometry_msgs::Twist vel;
     float a;
     float k;
-
+    bool obstacle_on;
 
 
 public:
@@ -42,6 +44,9 @@ public:
 
     pub_vel = nh_.advertise<geometry_msgs::Twist>("/motor_controller/twist", 1);
     sub_pose = nh_.subscribe<geometry_msgs::Pose>("/pose", 1, &MovementAction::poseCallback, this);
+    pub_obstacle = nh_.subscribe<std_msgs::Bool>("/wall_detected", 1, &MovementAction::obstacleCallback,this);
+    obstacle_on = false;
+
     a = 0.1;
     k = 1;
 
@@ -57,6 +62,11 @@ public:
         feedback_.current_point.position.y = msg -> position.y;
         feedback_.current_point.orientation.z = msg -> orientation.z;
         as_.publishFeedback(feedback_);
+
+  }
+
+  void obstacleCallback(const std_msgs::Bool::ConstPtr& msg){
+     obstacle_on = (bool) msg -> data;
 
   }
 
@@ -85,15 +95,15 @@ public:
 
 
     ROS_INFO("Path points:");
-    for (int i = 0; i<path_points.size(); i = i+2)
+    for (int ind = 0; ind<path_points.size(); ind = ind+2)
     {
-        ROS_INFO("[%f, %f]",path_points[i], path_points[i+1]);
+        ROS_INFO("[%f, %f]",path_points[ind], path_points[ind+1]);
     }
 
     while ( i<= path_points.size() )
     {
       // check that preempt has not been requested by the client
-      if (as_.isPreemptRequested() || !ros::ok())
+      if (obstacle_on == true|| !ros::ok()) // as_.isPreemptRequested()
       {
         ROS_INFO("%s: Preempted", action_name_.c_str());
         // set the action state to preempted
@@ -121,24 +131,20 @@ public:
       ROS_INFO("Aiming at: [%f, %f]", path_points[i], path_points[i+1]);
 
 
-
         //Calculate angle and publish velocity
         double phi = feedback_.current_point.orientation.z-atan2 ((path_points[i]-feedback_.current_point.position.y),(path_points[i+1]-feedback_.current_point.position.x));
         vel.linear.x = a;
         vel.angular.z = k*phi;
         pub_vel.publish(vel);
 
-      // publish the feedback
       as_.publishFeedback(feedback_);
-      // this sleep is not necessary, the sequence is computed at 1 Hz for demonstration purposes
+
       double distance_to_goal = sqrt(pow((goal->final_point.position.x)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.y)-feedback_.current_point.position.y,2));
+
       ROS_INFO("Current distance to goal: %f",distance_to_goal);
       if(distance_to_goal<= 0.05){
         success = true;
-//        break;
       }
-      //r.sleep();
-  //    }
 
     if(success)
     {
@@ -146,6 +152,7 @@ public:
       ROS_INFO("%s: Succeeded", action_name_.c_str());
       // set the action state to succeeded
       as_.setSucceeded(result_);
+      return;
     }
     sleep(1);
     }

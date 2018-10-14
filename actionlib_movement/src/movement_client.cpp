@@ -70,6 +70,9 @@ int main (int argc, char **argv)
         //ROS_INFO("Action did not finish before the time out.");
       }
 
+      //ac.waitForResult();
+      ros::spin();
+
       //exit
   //}
   return 0;
