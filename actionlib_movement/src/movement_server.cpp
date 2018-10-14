@@ -8,6 +8,8 @@
 #include <geometry_msgs/Pose.h>
 #include "create_path.cpp"
 #include <std_msgs/Bool.h>
+#include <tf/transform_listener.h>
+#include <nav_msgs/Odometry.h>
 
 
 class MovementAction
@@ -24,12 +26,14 @@ private:
   ros::Publisher pub_vel;
   ros::Subscriber sub_pose;
   ros::Subscriber pub_obstacle;
+  tf::Pose pose;
 
 	//Path mypath;
     geometry_msgs::Twist vel;
     float a;
     float k;
     bool obstacle_on;
+    float heading;
 
 
 public:
@@ -43,12 +47,12 @@ public:
   {
 
     pub_vel = nh_.advertise<geometry_msgs::Twist>("/motor_controller/twist", 1);
-    sub_pose = nh_.subscribe<geometry_msgs::Pose>("/pose", 1, &MovementAction::poseCallback, this);
+    sub_pose = nh_.subscribe<nav_msgs::Odometry>("/odom", 1, &MovementAction::poseCallback, this);
     pub_obstacle = nh_.subscribe<std_msgs::Bool>("/wall_detected", 1, &MovementAction::obstacleCallback,this);
     obstacle_on = false;
 
-    a = 0.1;
-    k = 1;
+    a = 0.15; // linear velocity
+    k = 0.5; // factor for angulare velocity
 
     as_.start();
     //ros::Subscriber sub_pose = nh_.subscribe<geometry_msgs::Pose>("/pose", 10, &MovementAction::poseCallback, this);
@@ -56,11 +60,13 @@ public:
 
   }
 
-  void poseCallback(const geometry_msgs::Pose::ConstPtr& msg){
+  void poseCallback(const nav_msgs::Odometry::ConstPtr& msg){
+        tf::poseMsgToTF(msg->pose.pose, pose);
+        feedback_.current_point.position.x = msg -> pose.pose.position.x;
+        feedback_.current_point.position.y = msg -> pose.pose.position.y;
+        heading = tf::getYaw(pose.getRotation());
 
-        feedback_.current_point.position.x = msg -> position.x;
-        feedback_.current_point.position.y = msg -> position.y;
-        feedback_.current_point.orientation.z = msg -> orientation.z;
+
         as_.publishFeedback(feedback_);
 
   }
@@ -81,7 +87,7 @@ public:
   {
     bool success = false;
     int i = 0;
-    double radius = 0.1; //meters
+    double radius = 0.5; //meters
 
 
     // publish info to the console for the user
@@ -120,6 +126,10 @@ public:
       {
           double dist = sqrt(pow(path_points[i]-feedback_.current_point.position.x,2)+pow(path_points[i+1]-feedback_.current_point.position.y,2));
 
+          if(i==path_points.size()-2)
+          {
+            break;
+          }
           if (dist >= radius)
           {
               ROS_INFO("Got point index %i for dist %f",i,dist);
@@ -132,7 +142,9 @@ public:
 
 
         //Calculate angle and publish velocity
-        double phi = feedback_.current_point.orientation.z-atan2 ((path_points[i]-feedback_.current_point.position.y),(path_points[i+1]-feedback_.current_point.position.x));
+        double phi = -heading + atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x)); //feedback_.current_point.orientation.z-
+        ROS_INFO("Heading: %f",heading);
+        ROS_INFO("Phi: %f", phi);
         vel.linear.x = a;
         vel.angular.z = k*phi;
         pub_vel.publish(vel);
@@ -148,13 +160,16 @@ public:
 
     if(success)
     {
+      vel.linear.x = 0;
+      vel.angular.z = 0;
+      pub_vel.publish(vel);
       result_.current_point = feedback_.current_point;
       ROS_INFO("%s: Succeeded", action_name_.c_str());
       // set the action state to succeeded
       as_.setSucceeded(result_);
       return;
     }
-    sleep(1);
+    //sleep(1);
     }
   }
 

@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   actionlib
+  nav_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -215,7 +216,7 @@ add_dependencies(
 
 add_executable(movement_client src/movement_client.cpp)
 
-target_link_libraries( 
+target_link_libraries(
   movement_client
   ${catkin_LIBRARIES}
 )
