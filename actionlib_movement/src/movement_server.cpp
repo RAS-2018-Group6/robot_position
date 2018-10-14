@@ -19,6 +19,7 @@ private:
   // create messages that are used to published feedback/result
   actionlib_movement::MovementFeedback feedback_;
   actionlib_movement::MovementResult result_;
+  actionlib_movement::MovementGoal goal_;
   ros::Publisher pub_vel;
   ros::Subscriber sub_pose;
 
@@ -70,7 +71,7 @@ public:
   {
     bool success = false;
     int i = 0;
-    double radius =0.1; //meters
+    double radius = 0.1; //meters
 
 
     // publish info to the console for the user
@@ -100,12 +101,12 @@ public:
         vel.linear.x = 0;
         vel.angular.z = 0;
         pub_vel.publish(vel);
-//        success = false;
-//        break;
+        success = false;
+        break;
       }
 
       ROS_INFO("movement_class: Looping through all points.");
-      for (i = 0; i<=path_points.size(); i = i+2)
+      for (i; i<=path_points.size(); i = i+2)
       {
           double dist = sqrt(pow(path_points[i]-feedback_.current_point.position.x,2)+pow(path_points[i+1]-feedback_.current_point.position.y,2));
 
@@ -130,8 +131,9 @@ public:
       // publish the feedback
       as_.publishFeedback(feedback_);
       // this sleep is not necessary, the sequence is computed at 1 Hz for demonstration purposes
-
-      if(sqrt(pow(path_points[nPoints-2]-feedback_.current_point.position.x,2)+pow(path_points[nPoints-1]-feedback_.current_point.position.y,2))<= 0.05){
+      double distance_to_goal = sqrt(pow((goal->final_point.position.x)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.y)-feedback_.current_point.position.y,2));
+      ROS_INFO("Current distance to goal: %f",distance_to_goal);
+      if(distance_to_goal<= 0.05){
         success = true;
 //        break;
       }
@@ -145,7 +147,7 @@ public:
       // set the action state to succeeded
       as_.setSucceeded(result_);
     }
-    sleep(0.5);
+    sleep(1);
     }
   }
 

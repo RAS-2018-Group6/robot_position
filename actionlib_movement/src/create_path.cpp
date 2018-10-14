@@ -10,7 +10,7 @@ public:
         PathCreator()
         {
 
-            point_distance = 0.1;
+            point_distance = 0.5;
 
         }
 
