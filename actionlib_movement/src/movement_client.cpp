@@ -14,8 +14,8 @@ bool obstacle_on = 0;
 void destinationCallback(const geometry_msgs::Pose::ConstPtr& msg){
    //x_dest = (double) msg -> position.x;
    //y_dest = (double) msg -> position.y;
-   x_dest = 10;
-   y_dest = 10;
+   x_dest = 1;
+   y_dest = 1;
 }
 
 void obstacleCallback(const std_msgs::Bool::ConstPtr& msg){

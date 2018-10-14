@@ -34,8 +34,8 @@ public:
 
 	}
 
-	ros::Subscriber sub_odom = nh_.subscribe("/odom", 1000, &pose_tf::odomCallback, this);
-  ros::Publisher pub_pose = nh_.advertise<geometry_msgs::Pose>("/pose", 1000);
+        ros::Subscriber sub_odom = nh_.subscribe("/odom", 1, &pose_tf::odomCallback, this);
+  ros::Publisher pub_pose = nh_.advertise<geometry_msgs::Pose>("/pose", 1);
 
 
 
