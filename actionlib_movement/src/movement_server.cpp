@@ -87,7 +87,7 @@ public:
   {
     bool success = false;
     int i = 0;
-    double radius = 0.5; //meters
+    double radius = 0.1; //meters
 
 
     // publish info to the console for the user
@@ -109,7 +109,17 @@ public:
     while ( i<= path_points.size() )
     {
       // check that preempt has not been requested by the client
-      if (obstacle_on == true|| !ros::ok()) // as_.isPreemptRequested()
+      if (obstacle_on == true) // as_.isPreemptRequested()
+      {
+        ROS_INFO("%s: Obstacle in the way. Paused ", action_name_.c_str());
+        // set the action state to preempted
+        vel.linear.x = 0;
+        vel.angular.z = 0;
+        pub_vel.publish(vel);
+        as_.publishFeedback(feedback_);
+        //break;
+
+      }else if (!ros::ok())
       {
         ROS_INFO("%s: Preempted", action_name_.c_str());
         // set the action state to preempted
@@ -119,61 +129,61 @@ public:
         pub_vel.publish(vel);
         success = false;
         break;
-      }
+      }else{
 
-      ROS_INFO("movement_class: Looping through all points.");
-      for (i; i<=path_points.size(); i = i+2)
-      {
-          double dist = sqrt(pow(path_points[i]-feedback_.current_point.position.x,2)+pow(path_points[i+1]-feedback_.current_point.position.y,2));
+        ROS_INFO("movement_class: Looping through all points.");
+        for (i; i<=path_points.size(); i = i+2)
+        {
+            double dist = sqrt(pow(path_points[i]-feedback_.current_point.position.x,2)+pow(path_points[i+1]-feedback_.current_point.position.y,2));
 
-          if(i==path_points.size()-2)
-          {
-            break;
-          }
-          if (dist >= radius)
-          {
-              ROS_INFO("Got point index %i for dist %f",i,dist);
+            if(i==path_points.size()-2)
+            {
               break;
-          }
-      }
+            }
+            if (dist >= radius)
+            {
+                ROS_INFO("Got point index %i for dist %f",i,dist);
+                break;
+            }
+        }
 
-      ROS_INFO("At position: [%f, %f]", feedback_.current_point.position.x, feedback_.current_point.position.y);
-      ROS_INFO("Aiming at: [%f, %f]", path_points[i], path_points[i+1]);
+        ROS_INFO("At position: [%f, %f]", feedback_.current_point.position.x, feedback_.current_point.position.y);
+        ROS_INFO("Aiming at: [%f, %f]", path_points[i], path_points[i+1]);
 
 
-        //Calculate angle and publish velocity
+          //Calculate angle and publish velocity
         double phi = -heading + atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x)); //feedback_.current_point.orientation.z-
         ROS_INFO("Heading: %f",heading);
         ROS_INFO("Phi: %f", phi);
-        vel.linear.x = a;
+        vel.linear.x = a*pow( (M_PI-fabs(phi)) / M_PI ,2);
         vel.angular.z = k*phi;
         pub_vel.publish(vel);
 
-      as_.publishFeedback(feedback_);
+        as_.publishFeedback(feedback_);
 
-      double distance_to_goal = sqrt(pow((goal->final_point.position.x)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.y)-feedback_.current_point.position.y,2));
+        double distance_to_goal = sqrt(pow((goal->final_point.position.x)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.y)-feedback_.current_point.position.y,2));
 
-      ROS_INFO("Current distance to goal: %f",distance_to_goal);
-      if(distance_to_goal<= 0.05){
-        success = true;
+        ROS_INFO("Current distance to goal: %f",distance_to_goal);
+        if(distance_to_goal<= 0.05){
+          success = true;
+        }
+
+      if(success)
+      {
+        vel.linear.x = 0;
+        vel.angular.z = 0;
+        pub_vel.publish(vel);
+        result_.current_point = feedback_.current_point;
+        ROS_INFO("%s: Succeeded", action_name_.c_str());
+        // set the action state to succeeded
+        as_.setSucceeded(result_);
+        return;
       }
-
-    if(success)
-    {
-      vel.linear.x = 0;
-      vel.angular.z = 0;
-      pub_vel.publish(vel);
-      result_.current_point = feedback_.current_point;
-      ROS_INFO("%s: Succeeded", action_name_.c_str());
-      // set the action state to succeeded
-      as_.setSucceeded(result_);
-      return;
+      //sleep(1);
+      }
     }
-    //sleep(1);
-    }
-  }
 
-
+}
 
 };
 

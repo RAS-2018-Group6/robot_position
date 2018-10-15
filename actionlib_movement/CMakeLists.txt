@@ -13,6 +13,9 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   actionlib
   nav_msgs
+  message_runtime
+  sensor_msgs
+
 )
 
 ## System dependencies are found with CMake's conventions
@@ -226,3 +229,9 @@ add_dependencies(
   ${actionlib_movement_EXPORTED_TARGETS}
   ${actionlib_tutorials_EXPORTED_TARGETS}
 )
+
+
+add_executable(abortObstacle_node src/abortDueToWall.cpp)
+
+target_link_libraries(abortObstacle_node ${catkin_LIBRARIES} )
+add_dependencies(abortObstacle_node abortObstacle_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
