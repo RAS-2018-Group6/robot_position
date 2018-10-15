@@ -15,7 +15,7 @@ void destinationCallback(const geometry_msgs::Pose::ConstPtr& msg){
    //x_dest = (double) msg -> position.x;
    //y_dest = (double) msg -> position.y;
    x_dest = 2;
-   y_dest = 2;
+   y_dest = 0;
 }
 
 void obstacleCallback(const std_msgs::Bool::ConstPtr& msg){
@@ -51,7 +51,7 @@ int main (int argc, char **argv)
     //x_dest = 10;
     //y_dest = 10;
     goal.final_point.position.x = 2;// x_dest;
-    goal.final_point.position.y = 2; //y_dest;
+    goal.final_point.position.y = 0; //y_dest;
     ac.sendGoal(goal);
 
     //wait for the action to return
