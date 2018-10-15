@@ -1,0 +1,8 @@
+#goal definition
+geometry_msgs/Pose final_point
+---
+#result definition
+geometry_msgs/Pose current_point
+---
+#feedback
+geometry_msgs/Pose current_point
