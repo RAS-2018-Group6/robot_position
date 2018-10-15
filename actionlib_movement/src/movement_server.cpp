@@ -10,7 +10,7 @@
 #include <std_msgs/Bool.h>
 #include <tf/transform_listener.h>
 #include <nav_msgs/Odometry.h>
-
+#include <geometry_msgs/PointStamped.h>
 
 class MovementAction
 {
@@ -26,6 +26,7 @@ private:
   ros::Publisher pub_vel;
   ros::Subscriber sub_pose;
   ros::Subscriber pub_obstacle;
+  ros::Subscriber dest;
   tf::Pose pose;
 
 	//Path mypath;
@@ -34,6 +35,8 @@ private:
     float k;
     bool obstacle_on;
     float heading;
+    double x_dest;
+    double y_dest;
 
 
 public:
@@ -49,14 +52,23 @@ public:
     pub_vel = nh_.advertise<geometry_msgs::Twist>("/motor_controller/twist", 1);
     sub_pose = nh_.subscribe<nav_msgs::Odometry>("/odom", 1, &MovementAction::poseCallback, this);
     pub_obstacle = nh_.subscribe<std_msgs::Bool>("/wall_detected", 1, &MovementAction::obstacleCallback,this);
+    dest = nh_.subscribe<geometry_msgs::PointStamped>("/found_object", 1, &MovementAction::destinationCallback,this);
     obstacle_on = false;
 
-    a = 0.15; // linear velocity
+    a = 0.05; // linear velocity
     k = 0.5; // factor for angulare velocity
 
     as_.start();
     //ros::Subscriber sub_pose = nh_.subscribe<geometry_msgs::Pose>("/pose", 10, &MovementAction::poseCallback, this);
     //ros::Publisher pub_vel = nh_.advertise<geometry_msgs::Twist>("/motor_controller/twist", 1);
+
+  }
+
+  void destinationCallback(const geometry_msgs::PointStamped::ConstPtr& msg){
+     x_dest = (double) msg->point.x;
+     y_dest = (double) msg->point.y;
+
+     ROS_INFO("X: %f , Y:%f",x_dest,y_dest);
 
   }
 
@@ -87,16 +99,17 @@ public:
   {
     bool success = false;
     int i = 0;
-    double radius = 0.1; //meters
+    double radius = 0.05; //meters
 
 
     // publish info to the console for the user
-    ROS_INFO("%s: Executing, following path to %f, %f ", action_name_.c_str(), goal->final_point.position.x, goal->final_point.position.y);
+    //ROS_INFO("%s: Executing, following path to %f, %f ", action_name_.c_str(), goal->final_point.position.x, goal->final_point.position.y);
 
 
     PathCreator my_path;
     std::vector<double> path_points;
-    path_points = my_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y);
+    //path_points = my_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y);
+    path_points = my_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,x_dest,y_dest);
     int nPoints = path_points.size() /2;
 
 
@@ -161,10 +174,11 @@ public:
 
         as_.publishFeedback(feedback_);
 
-        double distance_to_goal = sqrt(pow((goal->final_point.position.x)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.y)-feedback_.current_point.position.y,2));
+        //double distance_to_goal = sqrt(pow((goal->final_point.position.x)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.y)-feedback_.current_point.position.y,2));
+        double distance_to_goal = sqrt(pow((x_dest)-feedback_.current_point.position.x,2)+pow((y_dest)-feedback_.current_point.position.y,2));
 
         ROS_INFO("Current distance to goal: %f",distance_to_goal);
-        if(distance_to_goal<= 0.05){
+        if(distance_to_goal<= 0.10){
           success = true;
         }
 

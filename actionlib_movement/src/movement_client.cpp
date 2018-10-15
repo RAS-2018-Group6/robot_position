@@ -5,17 +5,20 @@
 #include "math.h"
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PointStamped.h>
 
 #include <std_msgs/Bool.h>
 
 double x_dest, y_dest;
 bool obstacle_on = 0;
+actionlib_movement::MovementGoal goal;
 
-void destinationCallback(const geometry_msgs::Pose::ConstPtr& msg){
-   //x_dest = (double) msg -> position.x;
-   //y_dest = (double) msg -> position.y;
-   x_dest = 2;
-   y_dest = 0;
+void destinationCallback(const geometry_msgs::PointStamped::ConstPtr& msg){
+   x_dest = (double) msg->point.x;
+   y_dest = (double) msg->point.y;
+
+   ROS_INFO("X: %f , Y:%f",x_dest,y_dest);
+
 }
 
 void obstacleCallback(const std_msgs::Bool::ConstPtr& msg){
@@ -39,10 +42,10 @@ int main (int argc, char **argv)
 
   ROS_INFO("Action server started, sending goal. GO BANANAS!");
   // send a goal to the action
-  actionlib_movement::MovementGoal goal;
 
-  ros::Subscriber dest = nh_.subscribe<geometry_msgs::Pose>("/destination", 10, destinationCallback);
-  ros::Subscriber obstacle = nh_.subscribe<std_msgs::Bool>("/wall_detected", 10, obstacleCallback);
+
+  ros::Subscriber dest = nh_.subscribe<geometry_msgs::PointStamped>("/found_object", 1, destinationCallback);
+  ros::Subscriber obstacle = nh_.subscribe<std_msgs::Bool>("/wall_detected", 1, obstacleCallback);
 
 
   //while (ros::ok())
@@ -50,8 +53,8 @@ int main (int argc, char **argv)
     //ros::spinOnce();
     //x_dest = 10;
     //y_dest = 10;
-    goal.final_point.position.x = 2;// x_dest;
-    goal.final_point.position.y = 0; //y_dest;
+    goal.final_point.position.x = x_dest;// x_dest;
+    goal.final_point.position.y = y_dest; //y_dest;
     ac.sendGoal(goal);
 
     //wait for the action to return
