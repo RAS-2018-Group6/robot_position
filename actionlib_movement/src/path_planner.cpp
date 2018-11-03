@@ -14,6 +14,9 @@
 //#define HIGH_COST 10
 #define FREE 30 //Asume there is nothing if the value is less than FREE
 #define UNKNOWN -7
+#define WALL 70
+#define THICK 50
+#define ROBSIZE 3 //Number of cells that we thicken the walls
 
 /*class MapNode{
 	public:
@@ -79,6 +82,27 @@ class PathCreator{
 				map_resolution = msg->info.resolution;
 				data = msg-> data;
 
+		}
+//Maybe this function should be in another place, or do partial smoothing
+//For now I'll do a simple function for it here
+		void smoothMap(){
+			for (int i = 0; i < nRows; i++){
+				for (int j = 0; j<nColumns; j++){
+					if (map[i][j]>WALL){
+						//Make the wall thicker (put a value <WALL and >FREE)
+						for (int m = -ROBSIZE; m = ROBSIZE; m++){
+							if (i>=m && map[i+m][j]<WALL && i<(nRows-m)){
+								map[i+m][j]=THICK;
+							}
+						}
+						for (int m = -ROBSIZE; m = ROBSIZE; m++){
+							if (j>=m && map[i][j+m]<WALL && j<(nColumns-m)){
+								map[i][j+m]=THICK;
+							}
+						}
+					}
+				}
+			}
 		}
 
 		double heuristic(int coords[2], int goal_coords[2]){
