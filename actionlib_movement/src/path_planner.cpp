@@ -12,7 +12,7 @@
 #define EMPTY -1
 #define VALUE 5
 //#define HIGH_COST 10
-#define FREE 0
+#define FREE 30 //Asume there is nothing if the value is less than FREE
 #define UNKNOWN -7
 
 /*class MapNode{
@@ -184,7 +184,7 @@ class PathCreator{
 					coords[0]=now.coords[0]-1; //try new coordinates
 					coords[1]=now.coords[1];
 
-					if(map[coords[0]][coords[1]] == FREE){ //If that cell is free of obstacles
+					if(map[coords[0]][coords[1]] <= FREE){ //If that cell is free of obstacles
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
 						f = g + h; // compute total cost
@@ -215,7 +215,7 @@ class PathCreator{
 					coords[0]=now.coords[0]+1; //try new coordinates
 					coords[1]=now.coords[1];
 
-					if(map[coords[0]][coords[1]] == FREE){ //If that cell is free of obstacles
+					if(map[coords[0]][coords[1]] <= FREE){ //If that cell is free of obstacles
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
 						f = g + h; // compute total cost
@@ -246,7 +246,7 @@ class PathCreator{
 					coords[0]=now.coords[0]; //try new coordinates
 					coords[1]=now.coords[1]-1;
 
-					if(map[coords[0]][coords[1]] == FREE){ //If that cell is free of obstacles
+					if(map[coords[0]][coords[1]] <= FREE){ //If that cell is free of obstacles
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
 						f = g + h; // compute total cost
@@ -277,7 +277,7 @@ class PathCreator{
 					coords[0]=now.coords[0]; //try new coordinates
 					coords[1]=now.coords[1]+1;
 
-					if(map[coords[0]][coords[1]] == FREE){ //If that cell is free of obstacles
+					if(map[coords[0]][coords[1]] <= FREE){ //If that cell is free of obstacles
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
 						f = g + h; // compute total cost
