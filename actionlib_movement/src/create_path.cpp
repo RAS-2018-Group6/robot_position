@@ -16,7 +16,7 @@ public:
 
 
 
-        std::vector<double> getPath(double x0, double y0, double x1, double y1)
+        std::vector<float> getPath(float x0, float y0, float x1, float y1)
         {
             createLinearPath(x0,y0,x1,y1);
             return path;
@@ -25,14 +25,14 @@ public:
 
 
 
-        void createLinearPath(double x0, double y0, double x1, double y1)
+        void createLinearPath(float x0, float y0, float x1, float y1)
         {
-            double phi = atan2(y1-y0,x1-x0);
-            double dist = sqrt(pow(x0-x1,2) + pow(y0-y1,2));
-            double current_dist = 0;
+            float phi = atan2(y1-y0,x1-x0);
+            float dist = sqrt(pow(x0-x1,2) + pow(y0-y1,2));
+            float current_dist = 0;
 
-            double x = x0;
-            double y = y0;
+            float x = x0;
+            float y = y0;
 
             while (current_dist <= dist)
             {
@@ -51,12 +51,12 @@ public:
 
 
 private:
-    std::vector<double> path;
-    double x_start;
-    double y_start;
-    double x_end;
-    double y_end;
-    double point_distance;
+    std::vector<float> path;
+    float x_start;
+    float y_start;
+    float x_end;
+    float y_end;
+    float point_distance;
 
 
 
@@ -70,7 +70,7 @@ int main(int argc, char** argv){
         ros::NodeHandle node("~");
 
         PathCreator my_path;
-        std::vector<double> path_points;
+        std::vector<float> path_points;
         path_points = my_path.getPath(1,1,0,0);
 
         ROS_INFO("Path points:");

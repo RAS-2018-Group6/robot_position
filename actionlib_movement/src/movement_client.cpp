@@ -6,77 +6,142 @@
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PointStamped.h>
-
 #include <std_msgs/Bool.h>
+#include "object.cpp"
+#include <vector>
+class Brain
+{
+public:
+    ros::NodeHandle n;
+    ros::Subscriber sub_obstacle;
+    ros::Subscriber sub_object;
 
-double x_dest, y_dest;
-bool obstacle_on = 0;
-actionlib_movement::MovementGoal goal;
+    Brain(ros::NodeHandle node)
+    {
+        n = node;
+        stopped = false;
+        //movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
+        //movement_server = new MovementAction("movement");
+        sub_obstacle = n.subscribe<std_msgs::Bool>("/wall_detected", 1, &Brain::obstacleCallback,this);
+        sub_object = n.subscribe<geometry_msgs::PointStamped>("/found_object", 1, &Brain::objectCallback,this);
+        movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
 
-void destinationCallback(const geometry_msgs::PointStamped::ConstPtr& msg){
-   x_dest = (double) msg->point.x;
-   y_dest = (double) msg->point.y;
+    }
+    ~Brain()
+    {
 
-   ROS_INFO("X: %f , Y:%f",x_dest,y_dest);
+    }
 
-}
 
-void obstacleCallback(const std_msgs::Bool::ConstPtr& msg){
-   obstacle_on = (bool) msg -> data;
+    void objectCallback(const geometry_msgs::PointStamped::ConstPtr& msg){
 
-}
+       double x = msg->point.x;
+       double y = msg->point.y;
+       int type = (int) msg->point.z;
+
+       for (int i = 0; i < foundObjects.size(); i++)
+       {
+           if (foundObjects[i].x == x && foundObjects[i].y == y)
+           {
+               // object already seen
+               return;
+           }
+       }
+       foundObjects.push_back(*(new ValuableObject(x,y,type)));
+    }
+
+    void obstacleCallback(const std_msgs::Bool::ConstPtr& msg)
+    {
+       if (msg -> data == true && stopped == false)
+       {
+           stopped = true;
+           movement_client->cancelGoal();
+           ROS_INFO  ("BRAIN: The goal has been cancelled.");
+
+       }else if (msg -> data == false && stopped == true)
+       {
+           ROS_INFO("BRAIN: Restarting goal.");
+           stopped = false;
+           moveToPosition(goal.final_point.position.x, goal.final_point.position.y, goal.final_point.orientation.z);
+       }
+    }
+
+
+    void doneCb(const actionlib::SimpleClientGoalState& state,
+            const actionlib_movement::MovementResultConstPtr& result) {
+        ROS_INFO("BRAIN: server responded with state [%s]", state.toString().c_str());
+
+        if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
+        {
+            ROS_INFO("BRAIN: Sending new goal. Lets go again!");
+            sleep(2);
+            moveToPosition(0,0,0);
+        }
+    }
+
+
+
+
+    void moveToObject()
+    {
+        if (foundObjects.size() == 0)
+        {
+            ROS_INFO("BRAIN: No objects are found. Could not move to object position.");
+            return;
+        }
+
+        //movement_server = new MovementAction("movement");
+        //actionlib_movement::MovementGoal goal;
+
+        goal.final_point.position.x = foundObjects[0].x;// x_dest;
+        goal.final_point.position.y = foundObjects[0].y; //y_dest;
+
+        ROS_INFO("BRAIN: Waiting for server.");
+        movement_client->waitForServer();
+        // TODO wait Duration(x), otherwise restart server.
+
+        ROS_INFO("BRAIN: SERVER IS UP");
+        movement_client->sendGoal(goal, boost::bind(&Brain::doneCb, this, _1, _2));
+    }
+
+    void moveToPosition(float x, float y, float z)
+    {
+        //movement_server = new MovementAction("movement");
+        //movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
+
+
+        goal.final_point.position.x = x;
+        goal.final_point.position.y = y;
+        goal.final_point.orientation.z = z;
+        // add orientation
+
+        ROS_INFO("BRAIN: Waiting for server.");
+        movement_client->waitForServer();
+        // TODO wait Duration(x), otherwise restart server.
+
+        ROS_INFO("BRAIN: SERVER IS UP");
+        movement_client->sendGoal(goal, boost::bind(&Brain::doneCb, this, _1, _2));
+    }
+
+
+private:
+    std::vector<ValuableObject> foundObjects;
+    bool stopped;
+    actionlib_movement::MovementGoal goal;
+    //MovementAction *movement_server;
+    actionlib::SimpleActionClient<actionlib_movement::MovementAction> *movement_client;
+
+
+};
 
 int main (int argc, char **argv)
 {
   ros::init(argc, argv, "send_movement");
-  ros::NodeHandle nh_;
-  bool obstacle_on;
+  ros::NodeHandle n;
 
-  // create the action client
-  // true causes the client to spin its own thread
-  actionlib::SimpleActionClient<actionlib_movement::MovementAction> ac("movement", true);
+  Brain brain(n);
+  brain.moveToPosition(1.0,0.0, 0.0); // Example action
+  ros::spin();
 
-  ROS_INFO("Waiting for action server to start.");
-  // wait for the action server to start
-  ac.waitForServer(); //will wait for infinite time
-
-  ROS_INFO("Action server started, sending goal. GO BANANAS!");
-  // send a goal to the action
-
-
-  ros::Subscriber dest = nh_.subscribe<geometry_msgs::PointStamped>("/found_object", 1, destinationCallback);
-  ros::Subscriber obstacle = nh_.subscribe<std_msgs::Bool>("/wall_detected", 1, obstacleCallback);
-
-
-  //while (ros::ok())
-  //{
-    //ros::spinOnce();
-    //x_dest = 10;
-    //y_dest = 10;
-    goal.final_point.position.x = x_dest;// x_dest;
-    goal.final_point.position.y = y_dest; //y_dest;
-    ac.sendGoal(goal);
-
-    //wait for the action to return
-
-
-    if (obstacle_on)
-    {
-
-      	//The goal should be cancelled here
-      	ac.cancelGoal();
-      	//ROS_INFO  ("The goal has been cancelled");
-        //actionlib::SimpleClientGoalState state = ac.getState();
-        //ROS_INFO("Action finished: %s",state.toString().c_str());
-      }
-      else{
-        //ROS_INFO("Action did not finish before the time out.");
-      }
-
-      //ac.waitForResult();
-      ros::spin();
-
-      //exit
-  //}
   return 0;
 }
