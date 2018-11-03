@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   geometry_msgs
+  nav_msgs
   actionlib
 )
 
@@ -73,6 +74,7 @@ generate_messages(
    actionlib_msgs
    std_msgs
    geometry_msgs
+   nav_msgs
  )
 
 ################################################
@@ -107,7 +109,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES actionlib_movement
-  CATKIN_DEPENDS actionlib_msgs message_generation roscpp rospy std_msgs geometry_msgs
+  CATKIN_DEPENDS nav_msgs actionlib_msgs message_generation roscpp rospy std_msgs geometry_msgs
 #  DEPENDS system_lib
 )
 
@@ -215,7 +217,7 @@ add_dependencies(
 
 add_executable(movement_client src/movement_client.cpp)
 
-target_link_libraries( 
+target_link_libraries(
   movement_client
   ${catkin_LIBRARIES}
 )
