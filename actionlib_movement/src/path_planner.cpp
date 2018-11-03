@@ -158,6 +158,7 @@ class PathCreator{
 
 			std::vector<cell> not_valid;
 			mapMatrix();
+			smoothMap();
 
 			g = 0;
 			h = heuristic(coords, goal_coords);
