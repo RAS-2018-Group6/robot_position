@@ -22,12 +22,19 @@ private:
     //actionlib_movement::MovementGoal goal_;
     ros::Publisher pub_vel;
     ros::Subscriber sub_pose;
+    ros::Subscriber sub_map_;
 
     tf::Pose pose;
     geometry_msgs::Twist vel;
     float a;
     float k;
     float heading;
+
+    int nRows_, nColumns_;
+		float map_resolution_;
+		std::vector<signed char> data_;
+
+
 
 
 public:
@@ -40,6 +47,7 @@ public:
 
         pub_vel = nh_.advertise<geometry_msgs::Twist>("/motor_controller/twist", 1);
         sub_pose = nh_.subscribe<nav_msgs::Odometry>("/odom", 1, &MovementAction::poseCallback, this);
+        sub_map_ = nh_.subscribe<nav_msgs::OccupancyGrid>("/grid_map",1,&MovementAction::mapCallback,this);
 
 
         a = 0.05; // linear velocity
@@ -63,6 +71,15 @@ public:
         as_.publishFeedback(feedback_);
     }
 
+    void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
+		{
+				//ROS_INFO("Map Callback");
+				nRows_ = msg->info.height;
+				nColumns_ = msg->info.width;
+				map_resolution_ = msg->info.resolution;
+				data_ = msg-> data;
+
+		}
 
 
     void executeCB(const actionlib_movement::MovementGoalConstPtr &goal)
@@ -73,7 +90,7 @@ public:
         float radius = 0.05; //meters
         PathCreator current_path;
         std::vector<float> path_points;
-        path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y);
+        path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
         int nPoints = path_points.size() / 2;
 
         ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
@@ -86,9 +103,11 @@ public:
         }
         */
 
+        ROS_INFO("number of path points: %i",path_points.size());
 
         while ( i<= path_points.size() )
         {
+          //ROS_INFO("Entered while Loop");
             if (as_.isPreemptRequested() || !ros::ok())
             {
                 ROS_INFO("SERVER: %s: Server preempted ", action_name_.c_str());
