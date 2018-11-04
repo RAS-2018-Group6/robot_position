@@ -50,8 +50,8 @@ class PathCreator{
 			newcell.coords[1]=coords[1];
 			newcell.f=f;
 			newcell.g=g;
-			newcell.parent_coords[0]=EMPTY;
-			newcell.parent_coords[1]=EMPTY;
+			newcell.parent_coords[0]=EMPTY; //I fill this in later
+			newcell.parent_coords[1]=EMPTY; //I fill this in later
 
 			return newcell;
 
@@ -130,14 +130,8 @@ class PathCreator{
 		}
 
 		std::vector<cell> build_path(cell goal, set_of_cells * close){
-
-
-
 			cell now=goal;
-
 			std::vector<cell> path_vector(1,goal);
-
-
 			while(now.parent_coords[0]!=EMPTY && now.parent_coords[1] != EMPTY){//While the cell we are looking at had been obtained from another one
 			//(was not the first one)
 
