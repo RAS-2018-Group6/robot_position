@@ -129,10 +129,8 @@ class PathCreator{
 			}
 		}
 
-//Maybe this function should be in another place, or do partial smoothing
-//For now I'll do a simple function for it here
-//This function is not working as it should: it gives the value thicken to all the empty cells
-		void smoothMap(){
+
+/*		void smoothMap(){
 			for (int i = 0; i < nColumns; i++){
 				for (int j = 0; j<nRows; j++){
 					//ROS_INFO("nEXT");
@@ -140,6 +138,7 @@ class PathCreator{
 						//Make the wall thicker (put a value <WALL and >FREE)
 						for (int m = -ROBSIZE; m <= ROBSIZE; m++){
 							//ROS_INFO("iNSIDE THE NEXT FOR, M = %i, i = %i, j = %i", m, i, j);
+
 							if (i>=(-m) && (i+m)<(nColumns) && map[i+m][j]<WALL){
 								map[i+m][j]=THICK;
 							}
@@ -148,6 +147,26 @@ class PathCreator{
 						for (int m = -ROBSIZE; m <= ROBSIZE; m++){
 							if (j>=(-m) && (j+m)<(nRows) && map[i][j+m]<WALL){
 								map[i][j+m]=THICK;
+							}
+						}
+					}
+					//ROS_INFO("Out of if, i = %i,  j= %i ", i, j);
+				}
+			}
+			ROS_INFO("Finished smoothing");
+		}*/
+		
+		void smoothMap(){
+			for (int i = 0; i < nColumns; i++){
+				for (int j = 0; j<nRows; j++){
+					//ROS_INFO("nEXT");
+					if (map[i][j]>WALL){
+						//Make the wall thicker (put a value <WALL and >FREE) in a squared area of size 2*ROBSIZE
+						for (int m = -ROBSIZE; m <= ROBSIZE; m++){
+							for (int n = -ROBSIZE; n <= ROBSIZE; n++){
+								if (i>=(-m) && (i+m)<(nColumns) && j>=(-n) && (j+n)<(nRows) && map[i+m][j+n]<WALL){
+									map[i+m][j+n]=THICK;
+								}
 							}
 						}
 					}
