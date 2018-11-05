@@ -6,6 +6,8 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <vector>
 #include "class_cell.hpp"
+#include <iostream>
+#include <fstream>
 //#include "/home/ras16/catkin_ws/src/robot_map/src/map_node.cpp"
 
 
@@ -58,6 +60,45 @@ class PathCreator{
 
 			return newcell;
 
+		}
+
+		//Print map to disk
+		void printMap(std::vector<cell> path){
+			char output [nColumns][nRows];
+			for(int i=0;i<nColumn;,i++){
+				for(int j=0;j<nRows;j++){
+					if(map[i][j] <= FREE){
+						output[i][j] = '.';
+					}
+					else if(map[i][j] >= WALL){
+						output[i][j] = '#';
+					}
+				}
+			}
+			ofstream myfile;
+			myfile.open("map_visualization.txt");
+			for(int j=0;j<nRows;j++){
+				for(int i=0;i<nColumns;i++){
+					myfile << output[i][j];
+				}
+				myfile << "\n";
+			}
+			myfile.close();
+			path_size = path.size();
+			for(int k=0;k<path_size;k+=2){
+					int i = path[k].coords[0];
+					int j = path[k+1].coords[1];
+					output[i][j] = 'x';
+			}
+			ofstream myfile_2;
+			myfile_2.open("path_visualization.txt");
+			for(int j=0;j<nRows;j++){
+				for(int i=0;i<nColumns;i++){
+					myfile_2 << output[i][j];
+				}
+				myfile_2 << "\n";
+			}
+			myfile_2.close();
 		}
 
 //This function is already in Kristian's code
@@ -397,7 +438,7 @@ int iter = 0;
 			}
 			std::reverse(path.begin(), path.end());
 			//ROS_INFO("Test");
-
+			printMap(path_cell);
 			return path;
 
 		}
