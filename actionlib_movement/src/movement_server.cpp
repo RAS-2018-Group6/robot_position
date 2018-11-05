@@ -87,7 +87,7 @@ public:
         float distance_to_goal, phi, dist;
         bool success = true;
         int i = 0;
-        float radius = 0.05; //meters
+        float radius = 0.10; //meters
         PathCreator current_path;
         std::vector<float> path_points;
         path_points = current_path.getPath(0.2,0.2,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
@@ -137,8 +137,8 @@ public:
                 }
             }
 
-            //ROS_INFO("At position: [%f, %f]", feedback_.current_point.position.x, feedback_.current_point.position.y);
-            //ROS_INFO("Aiming at: [%f, %f]", path_points[i], path_points[i+1]);
+            ROS_INFO("At position: [%f, %f]", feedback_.current_point.position.x, feedback_.current_point.position.y);
+            ROS_INFO("Aiming at: [%f, %f]", path_points[i], path_points[i+1]);
 
             phi = -heading + atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x)); //feedback_.current_point.orientation.z-
 
@@ -148,10 +148,10 @@ public:
 
             as_.publishFeedback(feedback_);
 
-            distance_to_goal = sqrt(pow((goal->final_point.position.x)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.y)-feedback_.current_point.position.y,2));
-            //ROS_INFO("Current distance to goal: %f",distance_to_goal);
+            distance_to_goal = sqrt(pow((goal->final_point.position.y)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.x)-feedback_.current_point.position.y,2));
+            ROS_INFO("Current distance to goal: %f",distance_to_goal);
 
-            if(distance_to_goal<= 0.10)
+            if(distance_to_goal<= 0.15)
             {
                 // set desired orientation;
                 vel.linear.x = 0;

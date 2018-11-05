@@ -18,7 +18,7 @@
 #define UNKNOWN -7
 #define WALL 70
 #define THICK 50
-#define ROBSIZE 7 //Number of cells that we thicken the walls
+#define ROBSIZE 15 //Number of cells that we thicken the walls
 
 /*class MapNode{
 	public:
@@ -337,7 +337,7 @@ int iter = 0;
 						}
 					}
 				}
-				
+
 			//	ROS_INFO("now coord = %i, %i", now.coords[0], now.coords[1]);
 
 				if(now.coords[0]-1>=0){ //If I'm not in the limit 0 of x:
