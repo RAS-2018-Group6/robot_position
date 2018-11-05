@@ -15,7 +15,7 @@
 #define FREE 30 //Asume there is nothing if the value is less than FREE
 #define UNKNOWN -7
 #define WALL 70
-#define THICK 20
+#define THICK 50
 #define ROBSIZE 3 //Number of cells that we thicken the walls
 
 /*class MapNode{
@@ -63,11 +63,11 @@ class PathCreator{
 //This function is already in Kristian's code
 		int mToCell(float x)
     {
-				ROS_INFO("Original Value: %f",x);
+				//ROS_INFO("Original Value: %f",x);
 
-				ROS_INFO("Map Resolution: %f", map_resolution);
+				//ROS_INFO("Map Resolution: %f", map_resolution);
         // converts x from meters to grid cell coordinate
-				ROS_INFO("Value:%i",(int) round(x/map_resolution));
+				//ROS_INFO("Value:%i",(int) round(x/map_resolution));
         return (int) round(x/map_resolution);
     }
 
@@ -76,7 +76,7 @@ class PathCreator{
 				//ROS_INFO("%i",i);
 				map[i].resize(nRows, UNKNOWN); //Give the vectors of the matrix a length
 			}
-			ROS_INFO("TEst");
+			//ROS_INFO("TEst");
 			for(int i = 0; i<nColumns; i++){
 				for (int j = 0; j < nRows; j++){
 					map[i][j]=data[i+j*nColumns];
@@ -231,10 +231,11 @@ int iter = 0;
 				if(now.coords[0]-1>=0){ //If I'm not in the limit 0 of x:
 					coords[0]=now.coords[0]-1; //try new coordinates
 					coords[1]=now.coords[1];
-				//	ROS_INFO("1 x_coord = %i , y_coord = %i", coords[0], coords[1]);
+			//	ROS_INFO("1 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
 
 
 					if(map[coords[0]][coords[1]] <= FREE){//If that cell is free of obstacles
+					//	ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
 						f = g + h; // compute total cost
@@ -268,7 +269,7 @@ int iter = 0;
 					coords[0]=now.coords[0]+1; //try new coordinates
 
 					coords[1]=now.coords[1];
-				//	ROS_INFO("2 x_coord = %i , y_coord = %i", coords[0], coords[1]);
+				//	ROS_INFO("2 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
 				//	ROS_INFO("hELOOOO");
 					if(map[coords[0]][coords[1]] <= FREE){ //If that cell is free of obstacles
 					//	ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
@@ -302,9 +303,10 @@ int iter = 0;
 				if(now.coords[1]-1>=0){ //If I'm not in the limit 0 of y:
 					coords[0]=now.coords[0]; //try new coordinates
 					coords[1]=now.coords[1]-1;
-				//	ROS_INFO("3 x_coord = %i , y_coord = %i", coords[0], coords[1]);
+					//ROS_INFO("3 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
 
 					if(map[coords[0]][coords[1]] <= FREE){ //If that cell is free of obstacles
+						//ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
 						f = g + h; // compute total cost
@@ -334,10 +336,10 @@ int iter = 0;
 				if(now.coords[0]+1<lengthy){ //If I'm not in the limit length of y:
 					coords[0]=now.coords[0]; //try new coordinates
 					coords[1]=now.coords[1]+1;
-					//ROS_INFO("4 x_coord = %i , y_coord = %i", coords[0], coords[1]);
+					//ROS_INFO("4 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
 
 					if(map[coords[0]][coords[1]]  <= FREE){ //If that cell is free of obstacles
-						//ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
+					//	ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
 						f = g + h; // compute total cost
@@ -384,16 +386,16 @@ int iter = 0;
 			int size_path = path_cell.size()*2;
 			std::vector<float> path (size_path);
 
-			ROS_INFO("Path Cell Size: %i",path_cell.size());
-			ROS_INFO("Path Size: %i",path.size());
+			//ROS_INFO("Path Cell Size: %i",path_cell.size());
+		//	ROS_INFO("Path Size: %i",path.size());
 
 			for (int i = 0; i<path_cell.size(); i+=2){
 			//	ROS_INFO("I = %i", i);
 				path[i] = path_cell[i].coords[0]*map_resolution;
 				path[i+1] = path_cell[i+1].coords[1]*map_resolution;
-			//	ROS_INFO("\n Path Point: X:%f Y:%f",path[i],path[i+1]);
+				//ROS_INFO("\n Path Point: X:%f Y:%f",path[i],path[i+1]);
 			}
-			ROS_INFO("Test");
+			//ROS_INFO("Test");
 
 			return path;
 
