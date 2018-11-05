@@ -12,7 +12,7 @@
 
 
 #define EMPTY -1
-#define VALUE 5
+#define VALUE 1
 //#define HIGH_COST 10
 #define FREE 30 //Asume there is nothing if the value is less than FREE
 #define UNKNOWN -7
@@ -65,17 +65,21 @@ class PathCreator{
 		//Print map to disk
 		void printMap(std::vector<cell> path){
 			char output [nColumns][nRows];
-			for(int i=0;i<nColumn;,i++){
+			for(int i=0;i<nColumns;i++){
 				for(int j=0;j<nRows;j++){
 					if(map[i][j] <= FREE){
 						output[i][j] = '.';
 					}
-					else if(map[i][j] >= WALL){
+					else if(map[i][j]==THICK){
+						output[i][j] = '/';
+					}
+					else if(map[i][j]>=WALL){
 						output[i][j] = '#';
 					}
+
 				}
 			}
-			ofstream myfile;
+			std::ofstream myfile;
 			myfile.open("map_visualization.txt");
 			for(int j=0;j<nRows;j++){
 				for(int i=0;i<nColumns;i++){
@@ -84,13 +88,13 @@ class PathCreator{
 				myfile << "\n";
 			}
 			myfile.close();
-			path_size = path.size();
-			for(int k=0;k<path_size;k+=2){
+			int path_size = path.size();
+			for(int k=0;k<path_size;k++){
 					int i = path[k].coords[0];
-					int j = path[k+1].coords[1];
+					int j = path[k].coords[1];
 					output[i][j] = 'x';
 			}
-			ofstream myfile_2;
+			std::ofstream myfile_2;
 			myfile_2.open("path_visualization.txt");
 			for(int j=0;j<nRows;j++){
 				for(int i=0;i<nColumns;i++){
@@ -267,6 +271,73 @@ int iter = 0;
 
 				//If I haven't found the path yet, try the cells next to the cell now:
 				close.add(now); //Add the cell I'm in to the list
+
+				if(now.coords[1]-1>=0){ //If I'm not in the limit 0 of y:
+					coords[0]=now.coords[0]; //try new coordinates
+					coords[1]=now.coords[1]-1;
+					//ROS_INFO("3 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
+
+					if(map[coords[0]][coords[1]] <= FREE){ //If that cell is free of obstacles
+						//ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
+						h=heuristic(trial.coords,goal_coords); //compute heuristic
+						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
+						f = g + h; // compute total cost
+
+						if(open.inside(coords)){
+							trial = open.get(coords);
+						}
+						else{
+							trial = new_cell(coords,f,g);
+						}
+
+						if(!close.inside(trial.coords) || f < trial.f ){ //If that cell is not in the list still OR it has higher value f
+							trial.g=g; //update the values of that cell
+							trial.f=f;
+							trial.parent_coords[0]=now.coords[0];
+							trial.parent_coords[1]=now.coords[1];
+							if(!open.inside(trial.coords)) //If that cell is not in this list
+								open.add(trial); //include it
+							else{ // update the value of the cell in open
+								open.pop(trial.coords);
+								open.add(trial);
+							}
+						}
+					}
+				}
+				//ROS_INFO("aFTER IF NUMBER 3");
+				if(now.coords[0]+1<lengthy){ //If I'm not in the limit length of y:
+					coords[0]=now.coords[0]; //try new coordinates
+					coords[1]=now.coords[1]+1;
+					//ROS_INFO("4 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
+
+					if(map[coords[0]][coords[1]]  <= FREE){ //If that cell is free of obstacles
+					//	ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
+						h=heuristic(trial.coords,goal_coords); //compute heuristic
+						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
+						f = g + h; // compute total cost
+
+						if(open.inside(coords)){
+							trial = open.get(coords);
+						}
+						else{
+							trial = new_cell(coords,f,g);
+						}
+
+						if(!close.inside(trial.coords) || f < trial.f ){ //If that cell is not in the list still OR it has higher value f
+							trial.g=g; //update the values of that cell
+							trial.f=f;
+							trial.parent_coords[0]=now.coords[0];
+							trial.parent_coords[1]=now.coords[1];
+							if(!open.inside(trial.coords)) //If that cell is not in this list
+								open.add(trial); //include it
+							else{ // update the value of the cell in open
+								open.pop(trial.coords);
+								open.add(trial);
+							}
+						}
+					}
+				}
+				
 			//	ROS_INFO("now coord = %i, %i", now.coords[0], now.coords[1]);
 
 				if(now.coords[0]-1>=0){ //If I'm not in the limit 0 of x:
@@ -341,71 +412,7 @@ int iter = 0;
 				}
 			//	ROS_INFO("aFTER IF NUMBER 2");
 
-				if(now.coords[1]-1>=0){ //If I'm not in the limit 0 of y:
-					coords[0]=now.coords[0]; //try new coordinates
-					coords[1]=now.coords[1]-1;
-					//ROS_INFO("3 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
 
-					if(map[coords[0]][coords[1]] <= FREE){ //If that cell is free of obstacles
-						//ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
-						h=heuristic(trial.coords,goal_coords); //compute heuristic
-						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
-						f = g + h; // compute total cost
-
-						if(open.inside(coords)){
-							trial = open.get(coords);
-						}
-						else{
-							trial = new_cell(coords,f,g);
-						}
-
-						if(!close.inside(trial.coords) || f < trial.f ){ //If that cell is not in the list still OR it has higher value f
-							trial.g=g; //update the values of that cell
-							trial.f=f;
-							trial.parent_coords[0]=now.coords[0];
-							trial.parent_coords[1]=now.coords[1];
-							if(!open.inside(trial.coords)) //If that cell is not in this list
-								open.add(trial); //include it
-							else{ // update the value of the cell in open
-								open.pop(trial.coords);
-								open.add(trial);
-							}
-						}
-					}
-				}
-				//ROS_INFO("aFTER IF NUMBER 3");
-				if(now.coords[0]+1<lengthy){ //If I'm not in the limit length of y:
-					coords[0]=now.coords[0]; //try new coordinates
-					coords[1]=now.coords[1]+1;
-					//ROS_INFO("4 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
-
-					if(map[coords[0]][coords[1]]  <= FREE){ //If that cell is free of obstacles
-					//	ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
-						h=heuristic(trial.coords,goal_coords); //compute heuristic
-						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
-						f = g + h; // compute total cost
-
-						if(open.inside(coords)){
-							trial = open.get(coords);
-						}
-						else{
-							trial = new_cell(coords,f,g);
-						}
-
-						if(!close.inside(trial.coords) || f < trial.f ){ //If that cell is not in the list still OR it has higher value f
-							trial.g=g; //update the values of that cell
-							trial.f=f;
-							trial.parent_coords[0]=now.coords[0];
-							trial.parent_coords[1]=now.coords[1];
-							if(!open.inside(trial.coords)) //If that cell is not in this list
-								open.add(trial); //include it
-							else{ // update the value of the cell in open
-								open.pop(trial.coords);
-								open.add(trial);
-							}
-						}
-					}
-				}
 			//	ROS_INFO("aFTER IF NUMBER 4");
 			}
 			ROS_INFO("nO PATH");
@@ -429,12 +436,13 @@ int iter = 0;
 
 			//ROS_INFO("Path Cell Size: %i",path_cell.size());
 		//	ROS_INFO("Path Size: %i",path.size());
-
-			for (int i = 0; i<path_cell.size(); i+=2){
+			int j = 0;
+			for (int i = 0; i<path_cell.size(); i++){
 			//	ROS_INFO("I = %i", i);
-				path[i] = path_cell[i].coords[0]*map_resolution;
-				path[i+1] = path_cell[i+1].coords[1]*map_resolution;
-				ROS_INFO("\n Path Point: X:%f Y:%f",path[i],path[i+1]);
+				path[j] = path_cell[i].coords[0]*map_resolution;
+				path[j+1] = path_cell[i].coords[1]*map_resolution;
+				ROS_INFO("\n Path Point: X:%f Y:%f",path[j],path[j+1]);
+				j += 2;
 			}
 			std::reverse(path.begin(), path.end());
 			//ROS_INFO("Test");
