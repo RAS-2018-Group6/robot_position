@@ -16,7 +16,7 @@
 #define UNKNOWN -7
 #define WALL 70
 #define THICK 50
-#define ROBSIZE 3 //Number of cells that we thicken the walls
+#define ROBSIZE 7 //Number of cells that we thicken the walls
 
 /*class MapNode{
 	public:
@@ -393,8 +393,9 @@ int iter = 0;
 			//	ROS_INFO("I = %i", i);
 				path[i] = path_cell[i].coords[0]*map_resolution;
 				path[i+1] = path_cell[i+1].coords[1]*map_resolution;
-				//ROS_INFO("\n Path Point: X:%f Y:%f",path[i],path[i+1]);
+				ROS_INFO("\n Path Point: X:%f Y:%f",path[i],path[i+1]);
 			}
+			std::reverse(path.begin(), path.end());
 			//ROS_INFO("Test");
 
 			return path;
