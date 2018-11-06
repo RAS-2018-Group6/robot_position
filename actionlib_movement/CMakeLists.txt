@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nav_msgs
   actionlib
+  arduino_servo_control
 )
 
 ## System dependencies are found with CMake's conventions
@@ -109,7 +110,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES actionlib_movement
-  CATKIN_DEPENDS nav_msgs actionlib_msgs message_generation roscpp rospy std_msgs geometry_msgs
+  CATKIN_DEPENDS nav_msgs actionlib_msgs message_generation roscpp rospy std_msgs geometry_msgs arduino_servo_control
 #  DEPENDS system_lib
 )
 

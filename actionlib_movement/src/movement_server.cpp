@@ -33,6 +33,7 @@ private:
     int nRows_, nColumns_;
 		float map_resolution_;
 		std::vector<signed char> data_;
+    std::vector<float> nextgoal;
 
 
 
@@ -66,6 +67,7 @@ public:
         tf::poseMsgToTF(msg->pose.pose, pose);
         feedback_.current_point.position.x = msg -> pose.pose.position.x;
         feedback_.current_point.position.y = msg -> pose.pose.position.y;
+        feedback_.current_point.orientation.z = msg-> pose.pose.orientation.z;
         heading = tf::getYaw(pose.getRotation());
 
         as_.publishFeedback(feedback_);
@@ -74,8 +76,8 @@ public:
     void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
 		{
 				//ROS_INFO("Map Callback");
-				nRows_ = msg->info.height;
-				nColumns_ = msg->info.width;
+				nColumns_ = msg->info.height;
+				nRows_ = msg->info.width;
 				map_resolution_ = msg->info.resolution;
 				data_ = msg-> data;
 
@@ -87,15 +89,16 @@ public:
         float distance_to_goal, phi, dist;
         bool success = true;
         int i = 0;
-        float radius = 0.10; //meters
+        float radius = 0.17; //meters
         PathCreator current_path;
         std::vector<float> path_points;
-        path_points = current_path.getPath(0.2,0.2,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
+        ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
+        path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
 
       //  path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
         int nPoints = path_points.size() / 2;
 
-        ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
+
 
         /*
         ROS_INFO("Path points:");
@@ -137,8 +140,8 @@ public:
                 }
             }
 
-            ROS_INFO("At position: [%f, %f]", feedback_.current_point.position.x, feedback_.current_point.position.y);
-            ROS_INFO("Aiming at: [%f, %f]", path_points[i], path_points[i+1]);
+          //  ROS_INFO("At position: [%f, %f]", feedback_.current_point.position.x, feedback_.current_point.position.y);
+          //  ROS_INFO("Aiming at: [%f, %f]", path_points[i], path_points[i+1]);
 
             phi = -heading + atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x)); //feedback_.current_point.orientation.z-
 
@@ -148,10 +151,10 @@ public:
 
             as_.publishFeedback(feedback_);
 
-            distance_to_goal = sqrt(pow((goal->final_point.position.y)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.x)-feedback_.current_point.position.y,2));
+            distance_to_goal = sqrt(pow((goal->final_point.position.x)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.y)-feedback_.current_point.position.y,2));
             ROS_INFO("Current distance to goal: %f",distance_to_goal);
 
-            if(distance_to_goal<= 0.15)
+            if(distance_to_goal<= 0.05)
             {
                 // set desired orientation;
                 vel.linear.x = 0;

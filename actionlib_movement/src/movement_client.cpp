@@ -9,6 +9,8 @@
 #include <std_msgs/Bool.h>
 #include "object.cpp"
 #include <vector>
+#include "arduino_servo_control/SetServoAngles.h"
+
 class Brain
 {
 public:
@@ -20,17 +22,46 @@ public:
     {
         n = node;
         stopped = false;
+        abort1 = false;
         //movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
         //movement_server = new MovementAction("movement");
         sub_obstacle = n.subscribe<std_msgs::Bool>("/wall_detected", 1, &Brain::obstacleCallback,this);
         sub_object = n.subscribe<geometry_msgs::PointStamped>("/found_object", 1, &Brain::objectCallback,this);
         movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
 
+        gripper_client = n.serviceClient<arduino_servo_control::SetServoAngles>("arduino_servo_control/set_servo_angles");
+	gripperDown();
+	sleep(1);
+	gripperUp();
     }
     ~Brain()
     {
 
     }
+
+    void gripperDown()
+{
+	srv.request.angle_servo_1 = 0;
+
+	if(gripper_client.call(srv)){
+		ROS_INFO("Gripper down");
+	}
+	else{
+		ROS_INFO("Failed to lower gripper");
+	}
+}
+
+    void gripperUp()
+{
+	srv.request.angle_servo_1 = 90;
+
+	if(gripper_client.call(srv)){
+		ROS_INFO("Gripper up");
+	}
+	else{
+		ROS_INFO("Failed to rise gripper");
+	}
+}
 
 
     void objectCallback(const geometry_msgs::PointStamped::ConstPtr& msg){
@@ -48,6 +79,13 @@ public:
            }
        }
        foundObjects.push_back(*(new ValuableObject(x,y,type)));
+       if (abort1 == false)
+       {
+         movement_client->cancelGoal();
+         ROS_INFO  ("BRAIN: The goal has been cancelled.");
+         moveToPosition(x,y,0);
+     }
+
     }
 
     void obstacleCallback(const std_msgs::Bool::ConstPtr& msg)
@@ -73,9 +111,10 @@ public:
 
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
-            ROS_INFO("BRAIN: Sending new goal. Lets go again!");
-            sleep(2);
-            moveToPosition(0,0,0);
+            ROS_INFO("BRAIN: CATCH THE OBJECT!");
+            gripperDown();
+            //sleep(2);
+            //moveToObject(0,0,0);
         }
     }
 
@@ -127,9 +166,12 @@ public:
 private:
     std::vector<ValuableObject> foundObjects;
     bool stopped;
+    bool abort1;
     actionlib_movement::MovementGoal goal;
     //MovementAction *movement_server;
     actionlib::SimpleActionClient<actionlib_movement::MovementAction> *movement_client;
+    ros::ServiceClient gripper_client;
+    arduino_servo_control::SetServoAngles srv;
 
 
 };
@@ -140,7 +182,7 @@ int main (int argc, char **argv)
   ros::NodeHandle n;
 
   Brain brain(n);
-  brain.moveToPosition(0.2,1.5,0.0); // Example action
+  brain.moveToPosition(1.0,0.2,0.0); // Example action
   ros::spin();
 
   return 0;
