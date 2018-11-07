@@ -9,6 +9,7 @@
 #include "path_planner.cpp"
 #include <tf/transform_listener.h>
 #include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
 
 class MovementAction
 {
@@ -21,6 +22,7 @@ private:
     actionlib_movement::MovementResult result_;
     //actionlib_movement::MovementGoal goal_;
     ros::Publisher pub_vel;
+    ros::Publisher pub_path;
     ros::Subscriber sub_pose;
     ros::Subscriber sub_map_;
 
@@ -47,6 +49,7 @@ public:
         {
 
         pub_vel = nh_.advertise<geometry_msgs::Twist>("/motor_controller/twist", 1);
+        pub_path = nh_.advertise<nav_msgs::Path>("/path_publish", 1);
         sub_pose = nh_.subscribe<nav_msgs::Odometry>("/odom", 1, &MovementAction::poseCallback, this);
         sub_map_ = nh_.subscribe<nav_msgs::OccupancyGrid>("/grid_map",1,&MovementAction::mapCallback,this);
 
@@ -83,6 +86,31 @@ public:
 
 		}
 
+    void PathRos(std::vector<float> path){ //Publish the path points in rviz
+	int j = 0, i= 0;
+	nav_msgs::Path path_Ros;
+	if (path.size()>2){
+		for (i = 0; i < path.size()-3; i+=2){
+			path_Ros.poses[j].pose.position.x = path[i];
+			path_Ros.poses[j].pose.position.y = path[i+1];
+			path_Ros.poses[j].pose.position.z = 0;
+			path_Ros.poses[j].pose.orientation.x = 0;
+			path_Ros.poses[j].pose.orientation.y = 0;
+			path_Ros.poses[j].pose.orientation.z = 0;
+			path_Ros.poses[j].pose.orientation.w = atan2((path[i+3]-path[i+1]),(path[i+2]-path[i]));
+			j++;
+		}
+		path_Ros.poses[j].pose.position.x = path[i];
+		path_Ros.poses[j].pose.position.y = path[i+1];
+		path_Ros.poses[j].pose.position.z = 0;
+		path_Ros.poses[j].pose.orientation.x = 0;
+		path_Ros.poses[j].pose.orientation.y = 0;
+		path_Ros.poses[j].pose.orientation.z = 0;
+		path_Ros.poses[j].pose.orientation.w = pub_path.poses[j-1].pose.orientation.w; //The orientation of the last point is the same as the previous one
+	}
+	pub_path.Publish(path_Ros);
+    }
+
 
     void executeCB(const actionlib_movement::MovementGoalConstPtr &goal)
     {
@@ -94,6 +122,7 @@ public:
         std::vector<float> path_points;
         ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
         path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
+	PathRos(path_points); //Publish the path in rviz
 
       //  path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
         int nPoints = path_points.size() / 2;
