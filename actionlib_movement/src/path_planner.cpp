@@ -80,9 +80,9 @@ class PathCreator{
 			}
 			std::ofstream myfile;
 			myfile.open("map_visualization.txt");
-			for(int j=0;j<nRows;j++){
-				for(int i=0;i<nColumns;i++){
-					myfile << output[j][i];
+			for(int i=0;i<nRows;i++){
+				for(int j=0;j<nColumns;j++){
+					myfile << output[i][j];
 				}
 				myfile << "\n";
 			}
@@ -95,9 +95,9 @@ class PathCreator{
 			}
 			std::ofstream myfile_2;
 			myfile_2.open("path_visualization.txt");
-			for(int j=0;j<nRows;j++){
-				for(int i=0;i<nColumns;i++){
-					myfile_2 << output[j][i];
+			for(int i=0;i<nRows;i++){
+				for(int j=0;j<nColumns;j++){
+					myfile_2 << output[i][j];
 				}
 				myfile_2 << "\n";
 			}
@@ -434,7 +434,7 @@ int iter = 0;
 
 			//	ROS_INFO("aFTER IF NUMBER 4");
 			}
-			ROS_INFO("nO PATH");
+			ROS_INFO("No path has been found");
 
 			return not_valid; //If we are here, it means that there is no path to that point (the while loop has finished and no path has been found)
 		}
