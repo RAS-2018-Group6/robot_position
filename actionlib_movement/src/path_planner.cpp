@@ -141,9 +141,9 @@ class PathCreator{
 					//ROS_INFO("Out of if, i = %i,  j= %i ", i, j);
 				}
 			}
-			ROS_INFO("Finished smoothing");
+			ROS_INFO("Finished wall thickening");
 		}
-		
+
 		bool free_line(int x0, int y0, int x1, int y1){
 			bool free = true; //The line doesn't cross walls when free is true
 			float x_m0, y_m0, x_m1, y_m1;
@@ -156,46 +156,67 @@ class PathCreator{
 			float current_dist = 0;
 			float phi = atan2 ((y_m1-y_m0), (x_m1-x_m0));
 			int x_check, y_check;
-			
+			float point_distance = 0.01;
+
 			float x = x_m0;
       float y = y_m0;
+			ROS_INFO("is line from cell %i, %i to cell %i, %i free?:", x0, y0, x1, y1);
+
 			while(current_dist <= dist){
-				line.resize(line.size()+1);
-        line[line.size()-1].coords[0] = x;
-        line[line.size()-1].coords[1] = y;
+				line.push_back(x);
+        line.push_back(y);
         x = x+point_distance*cos(phi);
         y = y+point_distance*sin(phi);
         current_dist = current_dist+point_distance;
 			}
-			
-			for (i = 0; i<line.size(), i++){
-				x_check = mToCell(line[i].coords[0]);
-				y_check = mToCell(line[i].coords[1]);
+
+			for (int i = 0; i<line.size(); i+=2){
+				x_check = mToCell(line[i]);
+				y_check = mToCell(line[i+1]);
 				if (map[x_check][y_check] > FREE){ //The cell is occupied
+					ROS_INFO("The cell is occupied");
 					return false; //If there is a point in the line occupied by a wall, then the path is not free
 				}
+				//ROS_INFO("The cell is free");
 			}
+			ROS_INFO("Free line");
+
 			return true;
 		}
-		
+
 		std::vector<cell> smoothPath(std::vector<cell> path){
-			std::vector<cell> smooth_path; 
-			int c = 1;
+			std::vector<cell> smooth_path;
+			std::vector<cell>::iterator c = path.begin();
+			int iterations = 0;
 			smooth_path.push_back(path[0]);
 			smooth_path.push_back(path[1]);
-			while (c < path.size()){
+			while (c <= path.end() && iterations < path.size()){ //both should be the same, but just in case
 				for (int j = 1; j < path.size(); j++){
-					while (free_line(smooth_path[smooth_path.size()-2].coords[0],smooth_path[smooth_path.size()-2].coords[1],path[c].coords[0],path[c].coords[1])){ 
+					while (free_line(smooth_path[smooth_path.size()-2].coords[0],smooth_path[smooth_path.size()-2].coords[1],path[iterations].coords[0],path[iterations].coords[1]) && path.size()>0){
 						//As long as the line between the two points is free
+						ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
+
 						smooth_path.pop_back();
-						smooth_path.push_back(path[c]);
+						ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
+
+						smooth_path.push_back(path[iterations]);
+						ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
+
 						path.erase(c);
+						ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
+
 					}
+					smooth_path.push_back(path[iterations]);
 					path.erase(c);
 					c++;
+					iterations++;
+					ROS_INFO("New Point Added to smooth path");
 				}
 			}
-				
+			ROS_INFO("Number of points of the smooth path: %i", smooth_path.size());
+
+			ROS_INFO("The path has been smoothed");
+
 			return smooth_path;
 		}
 
@@ -472,11 +493,11 @@ int iter = 0;
 			data = map_data;
 
 			path_cell = astar(mToCell(x_robot),mToCell(y_robot),mToCell(x_dest),mToCell(y_dest));
-
+			if (path_cell.size()>1){ //Call the smoothing function just if the path exists
+				path_cell = smoothPath(path_cell);
+			}
 			int size_path = path_cell.size()*2;
 			std::vector<float> path (size_path);
-			
-			path_cell = smoothPath(path_cell);
 
 			//ROS_INFO("Path Cell Size: %i",path_cell.size());
 		//	ROS_INFO("Path Size: %i",path.size());
