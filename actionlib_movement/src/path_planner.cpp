@@ -107,11 +107,6 @@ class PathCreator{
 //This function is already in Kristian's code
 		int mToCell(float x)
     {
-				//ROS_INFO("Original Value: %f",x);
-
-				//ROS_INFO("Map Resolution: %f", map_resolution);
-        // converts x from meters to grid cell coordinate
-				//ROS_INFO("Value:%i",(int) round(x/map_resolution));
         return (int) round(x/map_resolution);
     }
 
@@ -128,33 +123,6 @@ class PathCreator{
 				}
 			}
 		}
-
-
-	/*	void smoothMap(){
-			for (int i = 0; i < nColumns; i++){
-				for (int j = 0; j<nRows; j++){
-					//ROS_INFO("nEXT");
-					if (map[i][j]>WALL){
-						//Make the wall thicker (put a value <WALL and >FREE)
-						for (int m = -ROBSIZE; m <= ROBSIZE; m++){
-							//ROS_INFO("iNSIDE THE NEXT FOR, M = %i, i = %i, j = %i", m, i, j);
-
-							if (i>=(-m) && (i+m)<(nColumns) && map[i+m][j]<WALL){
-								map[i+m][j]=THICK;
-							}
-						}
-
-						for (int m = -ROBSIZE; m <= ROBSIZE; m++){
-							if (j>=(-m) && (j+m)<(nRows) && map[i][j+m]<WALL){
-								map[i][j+m]=THICK;
-							}
-						}
-					}
-					//ROS_INFO("Out of if, i = %i,  j= %i ", i, j);
-				}
-			}
-			ROS_INFO("Finished smoothing");
-		}*/
 
 		void smoothMap(){
 			for (int i = 0; i < nRows; i++){
@@ -174,6 +142,61 @@ class PathCreator{
 				}
 			}
 			ROS_INFO("Finished smoothing");
+		}
+		
+		bool free_line(int x0, int y0, int x1, int y1){
+			bool free = true; //The line doesn't cross walls when free is true
+			float x_m0, y_m0, x_m1, y_m1;
+			std::vector<float> line (0);
+			x_m0 = x0*map_resolution;
+			y_m0 = y0*map_resolution;
+			x_m1 = x1*map_resolution;
+			y_m1 = y1*map_resolution;
+			float dist = sqrt(pow(x_m0-x_m1,2) + pow(y_m0-y_m1,2));
+			float current_dist = 0;
+			float phi = atan2 ((y_m1-y_m0), (x_m1-x_m0));
+			int x_check, y_check;
+			
+			float x = x_m0;
+      float y = y_m0;
+			while(current_dist <= dist){
+				line.resize(line.size()+1);
+        line[line.size()-1].coords[0] = x;
+        line[line.size()-1].coords[1] = y;
+        x = x+point_distance*cos(phi);
+        y = y+point_distance*sin(phi);
+        current_dist = current_dist+point_distance;
+			}
+			
+			for (i = 0; i<line.size(), i++){
+				x_check = mToCell(line[i].coords[0]);
+				y_check = mToCell(line[i].coords[1]);
+				if (map[x_check][y_check] > FREE){ //The cell is occupied
+					return false; //If there is a point in the line occupied by a wall, then the path is not free
+				}
+			}
+			return true;
+		}
+		
+		std::vector<cell> smoothPath(std::vector<cell> path){
+			std::vector<cell> smooth_path; 
+			int c = 1;
+			smooth_path.push_back(path[0]);
+			smooth_path.push_back(path[1]);
+			while (c < path.size()){
+				for (int j = 1; j < path.size(); j++){
+					while (free_line(smooth_path[smooth_path.size()-2].coords[0],smooth_path[smooth_path.size()-2].coords[1],path[c].coords[0],path[c].coords[1])){ 
+						//As long as the line between the two points is free
+						smooth_path.pop_back();
+						smooth_path.push_back(path[c]);
+						path.erase(c);
+					}
+					path.erase(c);
+					c++;
+				}
+			}
+				
+			return smooth_path;
 		}
 
 		double heuristic(int coords[2], int goal_coords[2]){
@@ -452,6 +475,8 @@ int iter = 0;
 
 			int size_path = path_cell.size()*2;
 			std::vector<float> path (size_path);
+			
+			path_cell = smoothPath(path_cell);
 
 			//ROS_INFO("Path Cell Size: %i",path_cell.size());
 		//	ROS_INFO("Path Size: %i",path.size());
