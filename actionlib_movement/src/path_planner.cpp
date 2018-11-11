@@ -186,24 +186,24 @@ class PathCreator{
 
 		std::vector<cell> smoothPath(std::vector<cell> path){
 			std::vector<cell> smooth_path;
-			std::vector<cell>::iterator c = path.begin();
-			int iterations = 0;
+			std::vector<cell>::iterator c = path.begin()+2;
+			int iterations = 2;
 			smooth_path.push_back(path[0]);
 			smooth_path.push_back(path[1]);
 			while (c <= path.end() && iterations < path.size()){ //both should be the same, but just in case
-				for (int j = 1; j < path.size(); j++){
+				for (int j = 1; j < path.size()-1; j++){
 					while (free_line(smooth_path[smooth_path.size()-2].coords[0],smooth_path[smooth_path.size()-2].coords[1],path[iterations].coords[0],path[iterations].coords[1]) && path.size()>0){
 						//As long as the line between the two points is free
-						ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
+						//ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
 
 						smooth_path.pop_back();
-						ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
+						//ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
 
 						smooth_path.push_back(path[iterations]);
-						ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
+						//ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
 
 						path.erase(c);
-						ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
+						//ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
 
 					}
 					smooth_path.push_back(path[iterations]);
@@ -212,6 +212,7 @@ class PathCreator{
 					iterations++;
 					ROS_INFO("New Point Added to smooth path");
 				}
+				smooth_path.push_back(path[iterations-1]);
 			}
 			ROS_INFO("Number of points of the smooth path: %i", smooth_path.size());
 
