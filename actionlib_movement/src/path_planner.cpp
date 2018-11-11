@@ -160,7 +160,7 @@ class PathCreator{
 
 			float x = x_m0;
       float y = y_m0;
-			ROS_INFO("is line from cell %i, %i to cell %i, %i free?:", x0, y0, x1, y1);
+			//ROS_INFO("is line from cell %i, %i to cell %i, %i free?:", x0, y0, x1, y1);
 
 			while(current_dist <= dist){
 				line.push_back(x);
@@ -174,12 +174,12 @@ class PathCreator{
 				x_check = mToCell(line[i]);
 				y_check = mToCell(line[i+1]);
 				if (map[x_check][y_check] > FREE){ //The cell is occupied
-					ROS_INFO("The cell is occupied");
+	//				ROS_INFO("The cell is occupied");
 					return false; //If there is a point in the line occupied by a wall, then the path is not free
 				}
 				//ROS_INFO("The cell is free");
 			}
-			ROS_INFO("Free line");
+			//ROS_INFO("Free line");
 
 			return true;
 		}
@@ -194,23 +194,37 @@ class PathCreator{
 				for (int j = 1; j < path.size()-1; j++){
 					while (free_line(smooth_path[smooth_path.size()-2].coords[0],smooth_path[smooth_path.size()-2].coords[1],path[iterations].coords[0],path[iterations].coords[1]) && path.size()>0){
 						//As long as the line between the two points is free
-						//ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
+					//	ROS_INFO("1. iterations = %i, path size = %i", iterations, path.size());
 
 						smooth_path.pop_back();
-						//ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
+				//		ROS_INFO("2. iterations = %i, path size = %i", iterations, path.size());
 
 						smooth_path.push_back(path[iterations]);
-						//ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
+			//			ROS_INFO("3. iterations = %i, path size = %i", iterations, path.size());
 
-						path.erase(c);
-						//ROS_INFO("iterations = %i, path size = %i", iterations, path.size());
+						if (c<= path.end()){
+						//	ROS_INFO("4.1 iterations = %i, path size = %i", iterations, path.size());
+
+							path.erase(c);
+							//ROS_INFO("4. iterations = %i, path size = %i", iterations, path.size());
+						}
+						//else ROS_INFO("4. Not erased");
+						if (c== path.end()){
+							//ROS_INFO("4. FINISHED PATH iterations = %i, path size = %i", iterations, path.size());
+							break;
+						}
 
 					}
 					smooth_path.push_back(path[iterations]);
-					path.erase(c);
-					c++;
+					if (c< path.end()){
+
+						path.erase(c);
+						c++;
+
+			//			ROS_INFO("Continue", iterations, path.size());
+					}
 					iterations++;
-					ROS_INFO("New Point Added to smooth path");
+				//	ROS_INFO("New Point Added to smooth path");
 				}
 				smooth_path.push_back(path[iterations-1]);
 			}
@@ -494,6 +508,8 @@ int iter = 0;
 			data = map_data;
 
 			path_cell = astar(mToCell(x_robot),mToCell(y_robot),mToCell(x_dest),mToCell(y_dest));
+			ROS_INFO("number of path points: %i",path_cell.size());
+
 			if (path_cell.size()>1){ //Call the smoothing function just if the path exists
 				path_cell = smoothPath(path_cell);
 			}
@@ -507,7 +523,7 @@ int iter = 0;
 			//	ROS_INFO("I = %i", i);
 				path[j] = path_cell[i].coords[0]*map_resolution;
 				path[j+1] = path_cell[i].coords[1]*map_resolution;
-				ROS_INFO("\n Path Point: X:%f Y:%f",path[j],path[j+1]);
+		//		ROS_INFO("\n Path Point: X:%f Y:%f",path[j],path[j+1]);
 				j += 2;
 			}
 			std::reverse(path.begin(), path.end());
