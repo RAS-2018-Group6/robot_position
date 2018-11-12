@@ -80,8 +80,8 @@ public:
     void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
 		{
 				//ROS_INFO("Map Callback");
-				nColumns_ = msg->info.height;
-				nRows_ = msg->info.width;
+				nRows_ = msg->info.height;
+				nColumns_ = msg->info.width;
 				map_resolution_ = msg->info.resolution;
 				data_ = msg-> data;
 

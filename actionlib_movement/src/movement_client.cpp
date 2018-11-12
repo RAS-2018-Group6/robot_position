@@ -182,7 +182,7 @@ int main (int argc, char **argv)
   ros::NodeHandle n;
 
   Brain brain(n);
-  brain.moveToPosition(2.1,0.8,0.0); // Example action
+  brain.moveToPosition(1.3,1.6,0.0); // Example action
   ros::spin();
 
   return 0;

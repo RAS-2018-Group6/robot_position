@@ -45,7 +45,7 @@ class PathCreator{
 	public:
 
 		//constructor
-		PathCreator() : map(245){;}
+		PathCreator() : map(243){;}
 
 		cell new_cell(int coords[2], double f, double g){
 
@@ -79,7 +79,7 @@ class PathCreator{
 				}
 			}
 			std::ofstream myfile;
-			myfile.open("map_visualization.txt");
+			myfile.open("/home/ras16/paths/map_visualization.txt");
 			for(int i=0;i<nRows;i++){
 				for(int j=0;j<nColumns;j++){
 					myfile << output[i][j];
@@ -89,12 +89,12 @@ class PathCreator{
 			myfile.close();
 			int path_size = path.size();
 			for(int k=0;k<path_size;k++){
-					int j = path[k].coords[0]; // x
-					int i = path[k].coords[1]; // y
+					int i = path[k].coords[0]; // x
+					int j = path[k].coords[1]; // y
 					output[i][j] = 'x';
 			}
 			std::ofstream myfile_2;
-			myfile_2.open("path_visualization.txt");
+			myfile_2.open("/home/ras16/paths/path_visualization.txt");
 			for(int i=0;i<nRows;i++){
 				for(int j=0;j<nColumns;j++){
 					myfile_2 << output[i][j];
@@ -119,7 +119,7 @@ class PathCreator{
 			//ROS_INFO("TEst");
 			for(int i = 0; i<nRows; i++){
 				for (int j = 0; j < nColumns; j++){
-					map[i][j]=data[j*nRows+i];
+					map[i][j]=data[j*nColumns+i];
 				}
 			}
 		}
@@ -279,8 +279,8 @@ class PathCreator{
 
 		std::vector<cell> astar(int x_robot, int y_robot, int x_goal, int y_goal){
 
-			int lengthx = nColumns;
-			int lengthy = nRows; //Number of cells in each direction that the map has
+			int lengthx = nRows;
+			int lengthy = nColumns; //Number of cells in each direction that the map has
 			int goal_coords[2]={x_goal,y_goal},coords[2],before[2],cost=0;
 			double g, f, h;
 
@@ -355,7 +355,7 @@ int iter = 0;
 					coords[1]=now.coords[1]-1;
 					//ROS_INFO("3 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
 
-					if(map[coords[1]][coords[0]] <= FREE){ //If that cell is free of obstacles
+					if(map[coords[0]][coords[1]] <= FREE){ //If that cell is free of obstacles
 						//ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
@@ -388,7 +388,7 @@ int iter = 0;
 					coords[1]=now.coords[1]+1;
 					//ROS_INFO("4 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
 
-					if(map[coords[1]][coords[0]]  <= FREE){ //If that cell is free of obstacles
+					if(map[coords[0]][coords[1]]  <= FREE){ //If that cell is free of obstacles
 					//	ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
@@ -424,7 +424,7 @@ int iter = 0;
 			//	ROS_INFO("1 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
 
 
-					if(map[coords[1]][coords[0]] <= FREE){//If that cell is free of obstacles
+					if(map[coords[0]][coords[1]] <= FREE){//If that cell is free of obstacles
 					//	ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
@@ -461,7 +461,7 @@ int iter = 0;
 					coords[1]=now.coords[1];
 				//	ROS_INFO("2 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
 				//	ROS_INFO("hELOOOO");
-					if(map[coords[1]][coords[0]] <= FREE){ //If that cell is free of obstacles
+					if(map[coords[0]][coords[1]] <= FREE){ //If that cell is free of obstacles
 					//	ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
@@ -521,14 +521,15 @@ int iter = 0;
 			int j = 0;
 			for (int i = 0; i<path_cell.size(); i++){
 			//	ROS_INFO("I = %i", i);
-				path[j] = path_cell[i].coords[0]*map_resolution;
-				path[j+1] = path_cell[i].coords[1]*map_resolution;
+				path[j] = path_cell[i].coords[1]*map_resolution; //y
+				path[j+1] = path_cell[i].coords[0]*map_resolution; //x
 		//		ROS_INFO("\n Path Point: X:%f Y:%f",path[j],path[j+1]);
 				j += 2;
 			}
 			std::reverse(path.begin(), path.end());
 			//ROS_INFO("Test");
 			printMap(path_cell);
+			ROS_INFO("Print path to hard disk");
 			return path;
 
 		}
