@@ -91,6 +91,7 @@ public:
 	     int j = 0;
        int i= 0;
 	      nav_msgs::Path path_Ros;
+        pub_path.publish(path_Ros); //Without this line, the message is not published
         path_Ros.poses.resize(path.size()/2);
         path_Ros.header.frame_id = '/map';
 	       if (path.size()>2){
