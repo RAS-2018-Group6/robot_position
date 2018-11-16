@@ -126,7 +126,7 @@ public:
         bool success = true;
         int i = 0;
         float radius = 0.17; //meters
-        PathCreator current_path;
+        PathCreator current_path (nColumns_); //Check if it is rows or columns. It has to be the value that is now 243
         std::vector<float> path_points;
         ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
       //  path_points = current_path.getPath(0.2,0.2,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);

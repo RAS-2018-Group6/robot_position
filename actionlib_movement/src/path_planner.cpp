@@ -18,7 +18,7 @@
 #define UNKNOWN -7
 #define WALL 70
 #define THICK 50
-#define ROBSIZE 12 //Number of cells that we thicken the walls
+#define ROBSIZE 0.2 //m (size of the robot that we want to thicken the walls with)
 
 /*class MapNode{
 	public:
@@ -39,14 +39,14 @@ class PathCreator{
 		float map_resolution;
 		std::vector<signed char> data;
 		std::vector<std::vector<signed char> > map;
+		int ROBSIZE_Cell;
 
 
 
 	public:
 
 		//constructor
-		PathCreator() : map(243){;}
-
+		PathCreator(int width) {map.resize(width);} //I'm not sure if it was the width or the height. It works with the value of 243.
 		cell new_cell(int coords[2], double f, double g){
 
 			cell newcell;
@@ -130,8 +130,8 @@ class PathCreator{
 					//ROS_INFO("nEXT");
 					if (map[i][j]>WALL){
 						//Make the wall thicker (put a value <WALL and >FREE) in a squared area of size 2*ROBSIZE
-						for (int m = -ROBSIZE; m <= ROBSIZE; m++){
-							for (int n = -ROBSIZE; n <= ROBSIZE; n++){
+						for (int m = -ROBSIZE_Cell; m <= ROBSIZE_Cell; m++){
+							for (int n = -ROBSIZE_Cell; n <= ROBSIZE_Cell; n++){
 								if (i>=(-m) && (i+m)<(nRows) && j>=(-n) && (j+n)<(nColumns) && map[i+m][j+n]<WALL){
 									map[i+m][j+n]=THICK;
 								}
@@ -142,6 +142,18 @@ class PathCreator{
 				}
 			}
 			ROS_INFO("Finished wall thickening");
+		}
+		
+		void unsmoothPoints(int x, int y){
+			for (int m = -(ROBSIZE_Cell-1); m <= (ROBSIZE_Cell-1); m++){
+				for (int n = -(ROBSIZE_Cell-1); n <= (ROBSIZE_Cell-1); n++){
+					if (x>=(-m) && (x+m)<(nRows) && y>=(-n) && (y+n)<(nColumns) ){
+						map[x+m][y+n]=0; //Clear the points next to the given point
+					}
+				}
+			}
+		
+		ROS_INFO("Finished clearing %i, %i", x, y);
 		}
 
 		bool free_line(int x0, int y0, int x1, int y1){
@@ -287,8 +299,10 @@ class PathCreator{
 
 			std::vector<cell> not_valid;
 			mapMatrix();
-
+			ROBSIZE_Cell = mToCell (ROBSIZE);
 			smoothMap();
+			unsmoothPoints(x_robot, y_robot);
+			unsmoothPoints(x_goal, y_goal);
 			ROS_INFO("Start A*");
 
 			g = 0;
