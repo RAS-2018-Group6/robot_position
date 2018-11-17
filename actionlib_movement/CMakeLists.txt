@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   actionlib
   arduino_servo_control
+  tf
 )
 
 ## System dependencies are found with CMake's conventions
@@ -110,7 +111,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES actionlib_movement
-  CATKIN_DEPENDS nav_msgs actionlib_msgs message_generation roscpp rospy std_msgs geometry_msgs arduino_servo_control
+  CATKIN_DEPENDS nav_msgs actionlib_msgs message_generation roscpp rospy std_msgs geometry_msgs arduino_servo_control tf
 #  DEPENDS system_lib
 )
 
@@ -207,6 +208,13 @@ add_executable(pose src/pose.cpp)
 
 target_link_libraries(
   pose
+  ${catkin_LIBRARIES}
+)
+
+add_executable(backwards_path src/backwards_path.cpp)
+
+target_link_libraries(
+  backwards_path
   ${catkin_LIBRARIES}
 )
 
