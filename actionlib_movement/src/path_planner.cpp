@@ -18,7 +18,7 @@
 #define UNKNOWN -7
 #define WALL 70
 #define THICK 50
-#define ROBSIZE 0.2 //m (size of the robot that we want to thicken the walls with)
+#define ROBSIZE 0.15 //m (size of the robot that we want to thicken the walls with)
 
 /*class MapNode{
 	public:
@@ -46,7 +46,7 @@ class PathCreator{
 	public:
 
 		//constructor
-		PathCreator(int width) {map.resize(width);} //I'm not sure if it was the width or the height. It works with the value of 243.
+		PathCreator(int height) {map.resize(height);}
 		cell new_cell(int coords[2], double f, double g){
 
 			cell newcell;
@@ -143,7 +143,7 @@ class PathCreator{
 			}
 			ROS_INFO("Finished wall thickening");
 		}
-		
+
 		void unsmoothPoints(int x, int y){
 			for (int m = -(ROBSIZE_Cell-1); m <= (ROBSIZE_Cell-1); m++){
 				for (int n = -(ROBSIZE_Cell-1); n <= (ROBSIZE_Cell-1); n++){
@@ -152,7 +152,7 @@ class PathCreator{
 					}
 				}
 			}
-		
+
 		ROS_INFO("Finished clearing %i, %i", x, y);
 		}
 
