@@ -147,7 +147,7 @@ class PathCreator{
 		void unsmoothPoints(int x, int y){
 			for (int m = -(ROBSIZE_Cell-1); m <= (ROBSIZE_Cell-1); m++){
 				for (int n = -(ROBSIZE_Cell-1); n <= (ROBSIZE_Cell-1); n++){
-					if (x>=(-m) && (x+m)<(nRows) && y>=(-n) && (y+n)<(nColumns) ){
+					if (x>=(-m) && (x+m)<(nRows) && y>=(-n) && (y+n)<(nColumns) && map[x+m][y+n]<WALL){
 						map[x+m][y+n]=0; //Clear the points next to the given point
 					}
 				}
