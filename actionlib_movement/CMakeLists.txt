@@ -240,6 +240,19 @@ add_dependencies(
   ${actionlib_tutorials_EXPORTED_TARGETS}
 )
 
+add_executable(object_client src/object_client.cpp)
+
+target_link_libraries(
+  object_client
+  ${catkin_LIBRARIES}
+)
+
+add_dependencies(
+  object_client
+  ${actionlib_movement_EXPORTED_TARGETS}
+  ${actionlib_tutorials_EXPORTED_TARGETS}
+)
+
 
 add_executable(movement_client src/movement_client.cpp)
 
