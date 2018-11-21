@@ -8,7 +8,7 @@
 #include <tf/transform_listener.h>
 #include <deque>
 
-class PathMemory
+class BackwardsPath
 {
 private:
     ros::NodeHandle n;
@@ -25,7 +25,7 @@ private:
 public:
 
 
-    PathMemory(ros::NodeHandle node)
+    BackwardsPath()
     {
         n = node;
         tf_listener = new tf::TransformListener();
@@ -33,12 +33,12 @@ public:
         path_distance = 0.5;
         path_msg.header.frame_id = "/map";
 
-        pub_path = n.advertise<nav_msgs::Path>("/past_path", 1);
+        //pub_path = n.advertise<nav_msgs::Path>("/past_path", 1);
         tf_listener->waitForTransform("/map","/base_link",ros::Time(0), ros::Duration(5));
 
     }
 
-    ~PathMemory(void)
+    ~BackwardsPath(void)
     {
     }
 
@@ -153,7 +153,7 @@ int main(int argc, char** argv)
   ros::NodeHandle node;
   ros::Rate loop_rate(5);
 
-  PathMemory pm(node);
+  BackwardsPath pm(node);
   ROS_INFO("Sleeping");
   sleep(5);
   pm.getPath();

@@ -22,6 +22,7 @@ private:
     actionlib_movement::MovementGoal goal;
     //MovementAction *movement_server;
     actionlib::SimpleActionClient<actionlib_movement::MovementAction> *movement_client;
+    actionlib::SimpleActionClient<actionlib_movement::MovementAction> *backwards_movement_client;
     ros::ServiceClient gripper_client;
     arduino_servo_control::SetServoAngles srv;
     sensor_msgs::PointCloud exploration_targets;
@@ -55,15 +56,32 @@ public:
         sub_object = n.subscribe<geometry_msgs::PointStamped>("/found_object", 1, &Brain::objectCallback,this);
         pub_targets = n.advertise<sensor_msgs::PointCloud>("/explore_targets",1);
         movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
+        backwards_movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("backwards_movement", true);
 
         gripper_client = n.serviceClient<arduino_servo_control::SetServoAngles>("arduino_servo_control/set_servo_angles");
 
-        initExploration();
+        //initExploration();
     }
     ~Brain()
     {
 
     }
+    void backOff()
+    {
+        ROS_INFO("Backing");
+        goal.final_point.position.x = 1;
+        goal.final_point.position.y = 1;
+        goal.final_point.orientation.z = 1;
+        // add orientation
+
+        ROS_INFO("BRAIN: Waiting for server.");
+        backwards_movement_client->waitForServer();
+        // TODO wait Duration(x), otherwise restart server.
+
+        ROS_INFO("BRAIN: SERVER IS UP");
+        backwards_movement_client->sendGoal(goal, boost::bind(&Brain::doneCb, this, _1, _2));
+    }
+
 
     void explorationLoop()
     {
@@ -131,11 +149,14 @@ public:
 
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
+
+            /*
             ROS_INFO("BRAIN: Point %i explored. Moving on!", current_point_index);
             exploration_targets.points[current_point_index].x = 0;
             exploration_targets.points[current_point_index].y = 0;
             current_point_index++;
             explorationLoop();
+            */
         }
     }
 
@@ -240,7 +261,9 @@ int main (int argc, char **argv)
 
   Brain brain(n);
   //brain.moveToPosition(2.3,0.6,0.0); // Example action
-  brain.explorationLoop();
+  //brain.explorationLoop();
+  sleep(5);
+  brain.backOff();
   ros::spin();
 
   return 0;

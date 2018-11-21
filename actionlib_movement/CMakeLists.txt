@@ -213,6 +213,19 @@ add_dependencies(
   ${actionlib_tutorials_EXPORTED_TARGETS}
 )
 
+add_executable(backwards_server src/backwards_server.cpp)
+
+target_link_libraries(
+  backwards_server
+  ${catkin_LIBRARIES}
+)
+
+add_dependencies(
+  backwards_server
+  ${actionlib_movement_EXPORTED_TARGETS}
+  ${actionlib_tutorials_EXPORTED_TARGETS}
+)
+
 add_executable(pose src/pose.cpp)
 
 target_link_libraries(
