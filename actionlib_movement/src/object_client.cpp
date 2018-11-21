@@ -24,6 +24,10 @@ public:
         stopped = false;
         abort1 = false;
 	      do_once = true;
+	catching_object = false;
+	average_position = 0;
+	object_position_x = 0.0;
+	object_position_y = 0.0;
         //movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
         //movement_server = new MovementAction("movement");
         sub_obstacle = n.subscribe<std_msgs::Bool>("/wall_detected", 1, &Brain::obstacleCallback,this);
@@ -66,14 +70,33 @@ void gripperUp()
 
 
     void objectCallback(const geometry_msgs::PointStamped::ConstPtr& msg){
+	if(!catching_object){
+		if(average_position == 0){
+			object_position_x = msg->point.x;
+       			object_position_y = msg->point.y;
+			average_position++;
+			movement_client->cancelGoal();
+       			ROS_INFO  ("BRAIN: The goal has been cancelled.");
+		}
+		else{
+			object_position_x = (object_position_x + msg->point.x)/2;
+       			object_position_y = (object_position_y + msg->point.y)/2;
+			average_position++;
+		}
+	
+	
+  
 
-       double x = msg->point.x;
-       double y = msg->point.y;
-       int type = (int) msg->point.z;
-
-       movement_client->cancelGoal();
-       ROS_INFO  ("BRAIN: The goal has been cancelled.");
-       moveToPosition(x,y,0);
+       
+       ROS_INFO ("Detected object position: (%f,%f)",object_position_x,object_position_y);
+	if(average_position > 40){
+		catching_object = true;
+       		moveToPosition(object_position_x,object_position_y,0);
+	}
+	
+	
+	}
+       
 
     }
 
@@ -157,12 +180,15 @@ private:
     std::vector<ValuableObject> foundObjects;
     bool stopped;
     bool abort1;
+    bool catching_object;
     actionlib_movement::MovementGoal goal;
     //MovementAction *movement_server;
     actionlib::SimpleActionClient<actionlib_movement::MovementAction> *movement_client;
     ros::ServiceClient gripper_client;
     arduino_servo_control::SetServoAngles srv;
     bool do_once;
+    int average_position;
+    double object_position_x , object_position_y;
 
 
 };
@@ -173,7 +199,7 @@ int main (int argc, char **argv)
   ros::NodeHandle n;
 
   Brain brain(n);
-  brain.moveToPosition(0.6,2.0,0.0); // Example action
+  brain.moveToPosition(0.6,1.6,0.0); // Example action
   ros::spin();
 
   return 0;

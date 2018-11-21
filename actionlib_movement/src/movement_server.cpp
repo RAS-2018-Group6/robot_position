@@ -130,7 +130,7 @@ public:
         float distance_to_goal, phi, dist;
         bool success = true;
         int i = 0;
-        float radius = 0.08; //meters
+        float radius = 0.02; //meters
         PathCreator current_path (nRows_);
         std::vector<float> path_points;
         ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
@@ -159,6 +159,7 @@ public:
             if (as_.isPreemptRequested() || !ros::ok())
             {
                 ROS_INFO("SERVER: %s: Server preempted ", action_name_.c_str());
+		ROS_INFO("CURRENT POSITION: %f, %f", feedback_.current_point.position.x, feedback_.current_point.position.y);
                 vel.linear.x = 0;
                 vel.angular.z = 0;
                 pub_vel.publish(vel);
@@ -209,7 +210,7 @@ public:
             distance_to_goal = sqrt(pow((goal->final_point.position.x)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.y)-feedback_.current_point.position.y,2));
           //ROS_INFO("Current distance to goal: %f",distance_to_goal);
 
-            if(distance_to_goal<= 0.05)
+            if(distance_to_goal<= 0.03)
             {
                 // set desired orientation;
                 vel.linear.x = 0;
