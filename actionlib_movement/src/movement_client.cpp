@@ -23,6 +23,7 @@ public:
         n = node;
         stopped = false;
         abort1 = false;
+	do_once = true;
         //movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
         //movement_server = new MovementAction("movement");
         sub_obstacle = n.subscribe<std_msgs::Bool>("/wall_detected", 1, &Brain::obstacleCallback,this);
@@ -109,10 +110,10 @@ public:
             const actionlib_movement::MovementResultConstPtr& result) {
         ROS_INFO("BRAIN: server responded with state [%s]", state.toString().c_str());
 
-        if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
+        if(state == actionlib::SimpleClientGoalState::SUCCEEDED && do_once)
         {
-            ROS_INFO("BRAIN: CATCH THE OBJECT!");
-            gripperDown();
+		do_once = false;
+            moveToPosition(2.2,0.2,0.0);
             //sleep(2);
             //moveToObject(0,0,0);
         }
@@ -172,6 +173,7 @@ private:
     actionlib::SimpleActionClient<actionlib_movement::MovementAction> *movement_client;
     ros::ServiceClient gripper_client;
     arduino_servo_control::SetServoAngles srv;
+    bool do_once;
 
 
 };
@@ -182,7 +184,7 @@ int main (int argc, char **argv)
   ros::NodeHandle n;
 
   Brain brain(n);
-  brain.moveToPosition(2.3,0.6,0.0); // Example action
+  brain.moveToPosition(0.6,2.0,0.0); // Example action
   ros::spin();
 
   return 0;

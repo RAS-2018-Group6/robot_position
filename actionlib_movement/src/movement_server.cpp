@@ -32,6 +32,7 @@ private:
     float a;
     float k;
     float heading;
+    float theta;
 
     int nRows_, nColumns_;
 		float map_resolution_;
@@ -51,12 +52,13 @@ public:
 
         pub_vel = nh_.advertise<geometry_msgs::Twist>("/motor_controller/twist", 1);
         pub_path = nh_.advertise<nav_msgs::Path>("/path_publish", 10000);
-        sub_pose = nh_.subscribe<nav_msgs::Odometry>("/odom", 1, &MovementAction::poseCallback, this);
-        sub_map_ = nh_.subscribe<nav_msgs::OccupancyGrid>("/grid_map",1,&MovementAction::mapCallback,this);
+        sub_pose = nh_.subscribe<nav_msgs::Odometry>("/particle_position", 1, &MovementAction::poseCallback, this);
+        sub_map_ = nh_.subscribe<nav_msgs::OccupancyGrid>("/smooth_map",1,&MovementAction::mapCallback,this);
 
 
-        a = 0.05; // linear velocity
+        a = 0.1; // linear velocity
         k = 0.5; // factor for angular velocity
+        theta = 0.0;
 
         as_.start();
     }
@@ -73,6 +75,9 @@ public:
         feedback_.current_point.position.y = msg -> pose.pose.position.y;
         feedback_.current_point.orientation.z = msg-> pose.pose.orientation.z;
         heading = tf::getYaw(pose.getRotation());
+	if (heading < 0){
+		heading = heading + 2 * M_PI;
+	}
 
         as_.publishFeedback(feedback_);
     }
@@ -93,7 +98,7 @@ public:
 	      nav_msgs::Path path_Ros;
         pub_path.publish(path_Ros); //Without this line, the message is not published
         path_Ros.poses.resize(path.size()/2);
-        path_Ros.header.frame_id = '/map';
+        path_Ros.header.frame_id = "/map";
 	       if (path.size()>2){
            for (i = 0; i < path.size()-3; i+=2){
   	            path_Ros.poses[j].pose.position.x = path[i];
@@ -125,7 +130,7 @@ public:
         float distance_to_goal, phi, dist;
         bool success = true;
         int i = 0;
-        float radius = 0.17; //meters
+        float radius = 0.08; //meters
         PathCreator current_path (nRows_);
         std::vector<float> path_points;
         ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
@@ -181,7 +186,19 @@ public:
           //  ROS_INFO("At position: [%f, %f]", feedback_.current_point.position.x, feedback_.current_point.position.y);
           //  ROS_INFO("Aiming at: [%f, %f]", path_points[i], path_points[i+1]);
 
-            phi = -heading + atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x)); //feedback_.current_point.orientation.z-
+	//theta = atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x));
+
+	    theta = atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x));
+
+            phi = -heading + theta;
+            if (phi > M_PI)
+            {
+              phi = phi - 2*M_PI;
+            }
+            else if(phi < -M_PI){
+              phi = phi + 2*M_PI;
+            }
+	    //ROS_INFO("HEADING: %f, THETA: %f, PHI: %f",heading,theta,phi);
 
             vel.linear.x = a*pow( (M_PI-fabs(phi)) / M_PI ,2);
             vel.angular.z = k*phi;
@@ -190,7 +207,7 @@ public:
             as_.publishFeedback(feedback_);
 
             distance_to_goal = sqrt(pow((goal->final_point.position.x)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.y)-feedback_.current_point.position.y,2));
-          //  ROS_INFO("Current distance to goal: %f",distance_to_goal);
+          //ROS_INFO("Current distance to goal: %f",distance_to_goal);
 
             if(distance_to_goal<= 0.05)
             {
@@ -198,17 +215,11 @@ public:
                 vel.linear.x = 0;
                 vel.angular.z = 0;
                 pub_vel.publish(vel);
-
-                vel.angular.z = 0.2; // rad/s
-                pub_vel.publish(vel);
-
-                sleep((-heading+goal->final_point.orientation.z)/0.2);
-                vel.angular.z = 0;
-                pub_vel.publish(vel);
                 break;
             }
         }
-
+	
+	
         if(success)
         {
             result_.current_point = feedback_.current_point;
