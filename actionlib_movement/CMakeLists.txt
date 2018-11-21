@@ -1,3 +1,4 @@
+set (CMAKE_CXX_STANDARD 11)
 cmake_minimum_required(VERSION 2.8.3)
 project(actionlib_movement)
 
@@ -15,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   arduino_servo_control
   tf
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -77,6 +79,7 @@ generate_messages(
    std_msgs
    geometry_msgs
    nav_msgs
+   sensor_msgs
  )
 
 ################################################
@@ -111,7 +114,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES actionlib_movement
-  CATKIN_DEPENDS nav_msgs actionlib_msgs message_generation roscpp rospy std_msgs geometry_msgs arduino_servo_control tf
+  CATKIN_DEPENDS nav_msgs actionlib_msgs message_generation roscpp rospy std_msgs geometry_msgs arduino_servo_control tf sensor_msgs
 #  DEPENDS system_lib
 )
 
@@ -204,6 +207,12 @@ target_link_libraries(
   ${catkin_LIBRARIES}
 )
 
+add_dependencies(
+  movement_server
+  ${actionlib_movement_EXPORTED_TARGETS}
+  ${actionlib_tutorials_EXPORTED_TARGETS}
+)
+
 add_executable(pose src/pose.cpp)
 
 target_link_libraries(
@@ -218,11 +227,19 @@ target_link_libraries(
   ${catkin_LIBRARIES}
 )
 
+add_executable(exploration_client src/exploration_client.cpp)
+
+target_link_libraries(
+  exploration_client
+  ${catkin_LIBRARIES}
+)
+
 add_dependencies(
-  movement_server
+  exploration_client
   ${actionlib_movement_EXPORTED_TARGETS}
   ${actionlib_tutorials_EXPORTED_TARGETS}
 )
+
 
 add_executable(movement_client src/movement_client.cpp)
 
