@@ -55,7 +55,7 @@ public:
         pub_vel = nh_.advertise<geometry_msgs::Twist>("/motor_controller/twist", 1);
         pub_path = nh_.advertise<nav_msgs::Path>("/path_publish", 10000);
         sub_pose = nh_.subscribe<nav_msgs::Odometry>("/particle_position", 1, &MovementAction::poseCallback, this);
-        sub_map_ = nh_.subscribe<nav_msgs::OccupancyGrid>("/smooth_map",1,&MovementAction::mapCallback,this);
+        sub_map_ = nh_.subscribe<nav_msgs::OccupancyGrid>("/grid_map",1,&MovementAction::mapCallback,this);
 
 
         a = 0.1; // linear velocity
@@ -134,7 +134,7 @@ public:
         float distance_to_goal, phi, dist;
         bool success = true;
         int i = 0;
-        float radius = 0.02; //meters
+        float radius = 0.08; //meters
         PathCreator current_path (nRows_);
         std::vector<float> path_points;
         ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
@@ -228,8 +228,8 @@ public:
                 break;
             }
         }
-	
-	
+
+
 
         if(success)
         {

@@ -227,19 +227,6 @@ add_dependencies(
   ${actionlib_tutorials_EXPORTED_TARGETS}
 )
 
-add_executable(pose src/pose.cpp)
-
-target_link_libraries(
-  pose
-  ${catkin_LIBRARIES}
-)
-
-add_executable(backwards_path src/backwards_path.cpp)
-
-target_link_libraries(
-  backwards_path
-  ${catkin_LIBRARIES}
-)
 
 add_executable(exploration_client src/exploration_client.cpp)
 

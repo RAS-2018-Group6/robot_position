@@ -50,7 +50,7 @@ public:
         sub_pose = nh_.subscribe<nav_msgs::Odometry>("/particle_position", 1, &MovementAction::poseCallback, this);
         tf_listener = new tf::TransformListener();
 
-        factor_linear = -0.05;
+        factor_linear = -0.08;
         factor_angular = -0.5;
         theta = 0.0;
         ROS_INFO("Starting server.");
@@ -72,6 +72,10 @@ public:
         if (heading < 0){
             heading = heading + 2 * M_PI;
         }
+        /*else if (heading > 2*M_PI)
+        {
+          heading = heading - 2*M_PI;
+        }*/
 
         as_.publishFeedback(feedback_);
     }
@@ -104,7 +108,7 @@ public:
                 return_points.push_back(x);
                 return_points.push_back(y);
 
-            }else if (sqrt( pow(return_points[nPoints-2]-x,2) + pow(return_points[nPoints-1]-y,2) ) > 0.01)
+            }else if (sqrt( pow(return_points[nPoints-2]-x,2) + pow(return_points[nPoints-1]-y,2) ) > 0.05)
             {
                 // Only add if this point is further than 1 cm away from the last point.
                 path_length += sqrt( pow(return_points[nPoints-2]-x,2) + pow(return_points[nPoints-1]-y,2) );
@@ -129,7 +133,7 @@ public:
             j++;
         }
         pub_path.publish(path_msg);
-        delete tf_listener;
+        //delete tf_listener;
 
         return return_points;
     }
@@ -141,7 +145,7 @@ public:
         float distance_to_goal, phi, dist;
         bool success = true;
         int i = 0;
-        float radius = 0.01; //meters
+        float radius = 0.05; //meters
 
         std::vector<float> path_points = getPath();
         int nPoints = path_points.size() / 2;
@@ -182,6 +186,7 @@ public:
             theta = atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x));
 
             phi = -heading + theta;
+            phi = -phi + M_PI;
             if (phi > M_PI)
             {
                 phi = phi - 2*M_PI;
@@ -200,7 +205,7 @@ public:
             distance_to_goal = sqrt(pow((path_points[nPoints*2-2])-feedback_.current_point.position.x,2)+pow((path_points[nPoints*2-1])-feedback_.current_point.position.y,2));
             //ROS_INFO("Current distance to goal: %f",distance_to_goal);
 
-            if(distance_to_goal<= 0.04)
+            if(distance_to_goal<= 0.03)
             {
                 vel.linear.x = 0;
                 vel.angular.z = 0;

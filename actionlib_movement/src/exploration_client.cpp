@@ -19,6 +19,7 @@ private:
     std::vector<ValuableObject> foundObjects;
     bool stopped;
     bool abort1;
+    bool do_once;
     actionlib_movement::MovementGoal goal;
     //MovementAction *movement_server;
     actionlib::SimpleActionClient<actionlib_movement::MovementAction> *movement_client;
@@ -43,6 +44,7 @@ public:
         n = node;
         stopped = false;
         abort1 = false;
+        do_once = true;
 
         N_FAILS = 0;
         MAX_FAILS = 3;
@@ -68,10 +70,11 @@ public:
     }
     void backOff()
     {
+        movement_client->cancelGoal();
         ROS_INFO("Backing");
-        goal.final_point.position.x = 1;
-        goal.final_point.position.y = 1;
-        goal.final_point.orientation.z = 1;
+        //goal.final_point.position.x = 1;
+        //goal.final_point.position.y = 1;
+        //goal.final_point.orientation.z = 1;
         // add orientation
 
         ROS_INFO("BRAIN: Waiting for server.");
@@ -79,7 +82,7 @@ public:
         // TODO wait Duration(x), otherwise restart server.
 
         ROS_INFO("BRAIN: SERVER IS UP");
-        backwards_movement_client->sendGoal(goal, boost::bind(&Brain::doneCb, this, _1, _2));
+        backwards_movement_client->sendGoal(goal, boost::bind(&Brain::back_doneCb, this, _1, _2));
     }
 
 
@@ -147,9 +150,27 @@ public:
             const actionlib_movement::MovementResultConstPtr& result) {
         ROS_INFO("BRAIN: server responded with state [%s]", state.toString().c_str());
 
+        if(state == actionlib::SimpleClientGoalState::SUCCEEDED and do_once)
+        {
+            do_once = false;
+            moveToPosition(2.2,0.3,0.0);
+            /*
+            ROS_INFO("BRAIN: Point %i explored. Moving on!", current_point_index);
+            exploration_targets.points[current_point_index].x = 0;
+            exploration_targets.points[current_point_index].y = 0;
+            current_point_index++;
+            explorationLoop();
+            */
+        }
+    }
+
+    void back_doneCb(const actionlib::SimpleClientGoalState& state,
+            const actionlib_movement::MovementResultConstPtr& result) {
+        ROS_INFO("BRAIN: backwards server responded with state [%s]", state.toString().c_str());
+
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
-
+            moveToPosition(goal.final_point.position.x, goal.final_point.position.y, goal.final_point.orientation.z);
             /*
             ROS_INFO("BRAIN: Point %i explored. Moving on!", current_point_index);
             exploration_targets.points[current_point_index].x = 0;
@@ -236,15 +257,17 @@ public:
        {
            stopped = true;
            movement_client->cancelGoal();
+           sleep(5);
            ROS_INFO  ("BRAIN: The goal has been cancelled. Need to move backwards.");
-           // TODO: Move backwards
+           backOff();
+
 
        }else if (msg -> data == false && stopped == true)
        {
-           ROS_INFO("BRAIN: Restarting goal.");
+           ROS_INFO("BRAIN: Obstacle not visible anymore.");
            stopped = false;
-           //moveToPosition(goal.final_point.position.x, goal.final_point.position.y, goal.final_point.orientation.z);
-           explorationLoop();
+
+           //explorationLoop();
 
        }
     }
@@ -260,11 +283,18 @@ int main (int argc, char **argv)
   ros::NodeHandle n;
 
   Brain brain(n);
-  //brain.moveToPosition(2.3,0.6,0.0); // Example action
-  //brain.explorationLoop();
-  sleep(5);
-  brain.backOff();
+  ROS_INFO("Move to position.");
+  brain.moveToPosition(0.4,2.0,0.0); // Example action
+  ROS_INFO("spin");
   ros::spin();
+  //brain.explorationLoop();
+  //ROS_INFO("sleeping");
+  //sleep(4);
+//  brain.backOff();
 
+  while(ros::ok())
+  {
+    //sleep(0.01);
+  }
   return 0;
 }
