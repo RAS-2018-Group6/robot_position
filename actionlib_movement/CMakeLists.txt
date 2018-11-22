@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   arduino_servo_control
   tf
   sensor_msgs
+
 )
 
 ## System dependencies are found with CMake's conventions
@@ -112,7 +113,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include
+  ##INCLUDE_DIRS include
   LIBRARIES actionlib_movement
   CATKIN_DEPENDS nav_msgs actionlib_msgs message_generation roscpp rospy std_msgs geometry_msgs arduino_servo_control tf sensor_msgs
 #  DEPENDS system_lib
@@ -266,3 +267,9 @@ add_dependencies(
   ${actionlib_movement_EXPORTED_TARGETS}
   ${actionlib_tutorials_EXPORTED_TARGETS}
 )
+
+
+add_executable(abortObstacle_node src/abortDueToWall.cpp)
+
+target_link_libraries(abortObstacle_node ${catkin_LIBRARIES} )
+add_dependencies(abortObstacle_node abortObstacle_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

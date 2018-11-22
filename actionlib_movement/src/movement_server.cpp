@@ -27,11 +27,13 @@ private:
     ros::Subscriber sub_pose;
     ros::Subscriber sub_map_;
 
+
     tf::Pose pose;
     geometry_msgs::Twist vel;
     float a;
     float k;
     float heading;
+
     float theta;
 
     int nRows_, nColumns_;
@@ -60,6 +62,7 @@ public:
         k = 0.5; // factor for angular velocity
         theta = 0.0;
 
+
         as_.start();
     }
 
@@ -75,9 +78,10 @@ public:
         feedback_.current_point.position.y = msg -> pose.pose.position.y;
         feedback_.current_point.orientation.z = msg-> pose.pose.orientation.z;
         heading = tf::getYaw(pose.getRotation());
-	if (heading < 0){
-		heading = heading + 2 * M_PI;
-	}
+	      if (heading < 0){
+		      heading = heading + 2 * M_PI;
+	      }
+
 
         as_.publishFeedback(feedback_);
     }
@@ -143,6 +147,7 @@ public:
 
 
 
+
         /*
         ROS_INFO("Path points:");
         for (int ind = 0; ind<path_points.size(); ind = ind+2)
@@ -150,6 +155,7 @@ public:
             ROS_INFO("[%f, %f]",path_points[ind], path_points[ind+1]);
         }
         */
+
 
         ROS_INFO("number of path points: %i",path_points.size());
 
@@ -183,12 +189,13 @@ public:
                 }
             }
 
+
           //  ROS_INFO("At position: [%f, %f]", feedback_.current_point.position.x, feedback_.current_point.position.y);
           //  ROS_INFO("Aiming at: [%f, %f]", path_points[i], path_points[i+1]);
 
-	//theta = atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x));
+	        //theta = atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x));
 
-	    theta = atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x));
+	          theta = atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x));
 
             phi = -heading + theta;
             if (phi > M_PI)
@@ -200,6 +207,7 @@ public:
             }
 	    //ROS_INFO("HEADING: %f, THETA: %f, PHI: %f",heading,theta,phi);
 
+
             vel.linear.x = a*pow( (M_PI-fabs(phi)) / M_PI ,2);
             vel.angular.z = k*phi;
             pub_vel.publish(vel);
@@ -207,6 +215,7 @@ public:
             as_.publishFeedback(feedback_);
 
             distance_to_goal = sqrt(pow((goal->final_point.position.x)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.y)-feedback_.current_point.position.y,2));
+
           //ROS_INFO("Current distance to goal: %f",distance_to_goal);
 
             if(distance_to_goal<= 0.05)
@@ -220,6 +229,7 @@ public:
         }
 	
 	
+
         if(success)
         {
             result_.current_point = feedback_.current_point;

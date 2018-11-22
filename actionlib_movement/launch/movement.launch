@@ -1,11 +1,12 @@
 <launch>
 
- 
-  <node pkg="actionlib_movement" type="movement_client" name="movement_client"/>
 
-  <node pkg="actionlib_movement" type="movement_server" name="movement_server"/>
+  <node pkg="actionlib_movement" type="movement_client" name="movement_client" output="screen"/>
 
-  <node pkg="actionlib_movement" type="pose" name="pose"/>
+  <node pkg="actionlib_movement" type="movement_server" name="movement_server" output="screen"/>
+
+  <node pkg="actionlib_movement" type="pose" name="pose" output="screen"/>
+
+  <node pkg="actionlib_movement" type="abort_obstacle" name="abortObstacle_node"/>
 
 </launch>
-	

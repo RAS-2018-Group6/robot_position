@@ -9,6 +9,7 @@
 #include <std_msgs/Bool.h>
 #include "object.cpp"
 #include <vector>
+
 #include "arduino_servo_control/SetServoAngles.h"
 
 class Brain
@@ -18,12 +19,14 @@ public:
     ros::Subscriber sub_obstacle;
     ros::Subscriber sub_object;
 
+
     Brain(ros::NodeHandle node)
     {
         n = node;
         stopped = false;
         abort1 = false;
-	do_once = true;
+	      do_once = true;
+
         //movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
         //movement_server = new MovementAction("movement");
         sub_obstacle = n.subscribe<std_msgs::Bool>("/wall_detected", 1, &Brain::obstacleCallback,this);
@@ -31,38 +34,36 @@ public:
         movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
 
         gripper_client = n.serviceClient<arduino_servo_control::SetServoAngles>("arduino_servo_control/set_servo_angles");
-	gripperDown();
-	sleep(1);
-	gripperUp();
+	      gripperDown();
+	      sleep(1);
+	      gripperUp();
     }
-    ~Brain()
-    {
-
+    
+    ~Brain(){
     }
 
-    void gripperDown()
-{
-	srv.request.angle_servo_1 = 0;
+    void gripperDown(){
+	      srv.request.angle_servo_1 = 0;
 
-	if(gripper_client.call(srv)){
-		ROS_INFO("Gripper down");
-	}
-	else{
-		ROS_INFO("Failed to lower gripper");
-	}
-}
+	      if(gripper_client.call(srv)){
+		        ROS_INFO("Gripper down");
+	      }
+	      else{
+		        ROS_INFO("Failed to lower gripper");
+	      }
+    }
 
-    void gripperUp()
-{
-	srv.request.angle_servo_1 = 90;
+    void gripperUp(){
+	      srv.request.angle_servo_1 = 90;
 
-	if(gripper_client.call(srv)){
-		ROS_INFO("Gripper up");
-	}
-	else{
-		ROS_INFO("Failed to rise gripper");
-	}
-}
+	      if(gripper_client.call(srv)){
+		        ROS_INFO("Gripper up");
+	      } 
+	      else{
+		        ROS_INFO("Failed to rise gripper");
+	      }
+    }
+
 
 
     void objectCallback(const geometry_msgs::PointStamped::ConstPtr& msg){
@@ -185,6 +186,7 @@ int main (int argc, char **argv)
 
   Brain brain(n);
   brain.moveToPosition(0.6,2.0,0.0); // Example action
+
   ros::spin();
 
   return 0;
