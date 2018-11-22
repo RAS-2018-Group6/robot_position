@@ -9,6 +9,7 @@
 #include <std_msgs/Bool.h>
 #include "object.cpp"
 #include <vector>
+#include <nav_msgs/Path.h>
 
 #include "arduino_servo_control/SetServoAngles.h"
 
@@ -18,6 +19,7 @@ public:
     ros::NodeHandle n;
     ros::Subscriber sub_obstacle;
     ros::Subscriber sub_object;
+    ros::Subscriber sub_path;
 
 
     Brain(ros::NodeHandle node)
@@ -31,6 +33,7 @@ public:
         //movement_server = new MovementAction("movement");
         sub_obstacle = n.subscribe<std_msgs::Bool>("/wall_detected", 1, &Brain::obstacleCallback,this);
         sub_object = n.subscribe<geometry_msgs::PointStamped>("/found_object", 1, &Brain::objectCallback,this);
+        sub_path = n.subscribe<nav_msgs::Path>("/path_publish", 1, &Brain::pathCallback,this);
         movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
 
         gripper_client = n.serviceClient<arduino_servo_control::SetServoAngles>("arduino_servo_control/set_servo_angles");
@@ -38,7 +41,7 @@ public:
 	      sleep(1);
 	      gripperUp();
     }
-    
+
     ~Brain(){
     }
 
@@ -58,7 +61,7 @@ public:
 
 	      if(gripper_client.call(srv)){
 		        ROS_INFO("Gripper up");
-	      } 
+	      }
 	      else{
 		        ROS_INFO("Failed to rise gripper");
 	      }
@@ -88,6 +91,13 @@ public:
          moveToPosition(x,y,0);
      }
 
+    }
+
+    void pathCallback(const nav_msgs::Path::ConstPtr& msg){
+      if (msg->poses.size()<2){
+        movement_client->cancelGoal();
+        ROS_INFO  ("BRAIN: The goal is not reachable.");
+      }
     }
 
     void obstacleCallback(const std_msgs::Bool::ConstPtr& msg)
