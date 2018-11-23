@@ -56,7 +56,7 @@ public:
 
         N_FAILS = 0;
         MAX_FAILS = 2;
-        sqrt_N_POINTS = 3;
+        sqrt_N_POINTS = 2;
         N_POINTS = pow(sqrt_N_POINTS,2);
 
         current_point_index = 0;
@@ -101,13 +101,18 @@ public:
     void explorationLoop()
     {
         // TODO: implement max number of fails before moving on.
-
+        //ROS_INFO("Point %i",current_point_index);
         if (!current_point_done)
         {
             return;
         }else if (N_FAILS > MAX_FAILS)
         {
+            ROS_INFO("Gave up on point %i", current_point_index);
+            exploration_targets.points[current_point_index].x = 0;
+            exploration_targets.points[current_point_index].y = 0;
             current_point_index++;
+            N_FAILS = 0;
+            current_point_done = true;
         }
         else if (current_point_index == N_POINTS)
         {
@@ -147,8 +152,8 @@ public:
         {
             for (int i = 1; i <= sqrt_N_POINTS; i++)
             {
-                exploration_targets.points[k].x = i*map.info.resolution*height/(sqrt_N_POINTS+1);
-                exploration_targets.points[k].y = j*map.info.resolution*width/(sqrt_N_POINTS+1);
+                exploration_targets.points[k].x = i*map.info.resolution*height/(sqrt_N_POINTS+1) + (float) dis(gen);
+                exploration_targets.points[k].y = j*map.info.resolution*width/(sqrt_N_POINTS+1) + (float) dis(gen);
                 //ROS_INFO("Point: (%f,%f)",exploration_targets.points[k].x,exploration_targets.points[k].y);
                 k++;
             }
@@ -225,6 +230,7 @@ public:
             ROS_INFO("BRAIN: Point %i explored. Moving on!", current_point_index);
             exploration_targets.points[current_point_index].x = 0;
             exploration_targets.points[current_point_index].y = 0;
+            ROS_INFO("Succeded with point %i", current_point_index);
             current_point_index++;
             N_FAILS = 0;
             //explorationLoop();
@@ -232,19 +238,9 @@ public:
 
         }else
         {
-            if (N_FAILS < MAX_FAILS)
-            {
                 N_FAILS++;
                 current_point_done = true;
                 //explorationLoop();
-            }else
-            {
-                N_FAILS = 0;
-                current_point_index++;
-                current_point_done = true;
-                //explorationLoop();
-            }
-
         }
     }
 
