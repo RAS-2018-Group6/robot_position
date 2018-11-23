@@ -146,8 +146,6 @@ public:
         int nPoints = path_points.size() / 2;
 
 
-
-
         /*
         ROS_INFO("Path points:");
         for (int ind = 0; ind<path_points.size(); ind = ind+2)
@@ -161,11 +159,23 @@ public:
 
         while ( i<= path_points.size() )
         {
+            if (nPoints <= 1){
+              ROS_INFO("SERVER: %s: Server aborted ", action_name_.c_str());
+              ROS_INFO("CURRENT POSITION: %f, %f", feedback_.current_point.position.x, feedback_.current_point.position.y);
+              ROS_INFO("No path found to goal position!");
+              vel.linear.x = 0;
+              vel.angular.z = 0;
+              pub_vel.publish(vel);
+              as_.publishFeedback(feedback_);
+              as_.setAborted();
+              success = false;
+              break;
+            }
           //ROS_INFO("Entered while Loop");
             if (as_.isPreemptRequested() || !ros::ok())
             {
                 ROS_INFO("SERVER: %s: Server preempted ", action_name_.c_str());
-		ROS_INFO("CURRENT POSITION: %f, %f", feedback_.current_point.position.x, feedback_.current_point.position.y);
+		            ROS_INFO("CURRENT POSITION: %f, %f", feedback_.current_point.position.x, feedback_.current_point.position.y);
                 vel.linear.x = 0;
                 vel.angular.z = 0;
                 pub_vel.publish(vel);
