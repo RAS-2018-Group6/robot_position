@@ -135,7 +135,7 @@ public:
         bool success = true;
         int i = 0;
         float radius = 0.08; //meters
-        PathCreator current_path (nRows_);
+        PathCreator current_path (nColumns_);
         std::vector<float> path_points;
         ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
       //  path_points = current_path.getPath(0.2,0.2,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
@@ -229,7 +229,7 @@ public:
 
           //ROS_INFO("Current distance to goal: %f",distance_to_goal);
 
-            if(distance_to_goal<= 0.03)
+            if(distance_to_goal<= goal->min_distance)
             {
                 // set desired orientation;
                 vel.linear.x = 0;

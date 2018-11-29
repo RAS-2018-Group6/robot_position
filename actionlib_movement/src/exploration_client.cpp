@@ -6,6 +6,8 @@
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PointStamped.h>
+#include <nav_msgs/OccupancyGrid.h>
+#include <nav_msgs/Odometry.h>
 #include <std_msgs/Bool.h>
 #include "object.cpp"
 #include <vector>
@@ -20,6 +22,7 @@ private:
     bool stopped;
     bool abort1;
     bool do_once;
+    bool got_map;
     actionlib_movement::MovementGoal goal;
     //MovementAction *movement_server;
     actionlib::SimpleActionClient<actionlib_movement::MovementAction> *movement_client;
@@ -27,17 +30,26 @@ private:
     ros::ServiceClient gripper_client;
     arduino_servo_control::SetServoAngles srv;
     sensor_msgs::PointCloud exploration_targets;
+    nav_msgs::OccupancyGrid map;
+    bool current_point_done;
     int current_point_index;
     int N_FAILS;
     int MAX_FAILS;
+    int sqrt_N_POINTS;
     int N_POINTS;
+    std::vector<float> previous_location; // keep tracked of moved distance to limit backof
+    float distance_moved_forwards; // meters moved since last time we moved backwards
+    bool ok_to_back;
 
 
 public:
     ros::NodeHandle n;
     ros::Subscriber sub_obstacle;
     ros::Subscriber sub_object;
+    ros::Subscriber sub_map;
+    ros::Subscriber sub_position;
     ros::Publisher pub_targets;
+    ros::Publisher pub_exploration_done;
 
     Brain(ros::NodeHandle node)
     {
@@ -45,18 +57,28 @@ public:
         stopped = false;
         abort1 = false;
         do_once = true;
+        got_map = false;
+        current_point_done = true;
 
         N_FAILS = 0;
-        MAX_FAILS = 3;
-        N_POINTS = 10;
-        current_point_index = 0;
+        MAX_FAILS = 4;
+        sqrt_N_POINTS = 1;
+        N_POINTS = pow(sqrt_N_POINTS,2);
+        previous_location.resize(2);
+        ok_to_back = 1;
 
+        current_point_index = 0;
+        exploration_targets.points.resize(pow(sqrt_N_POINTS,2));
 
         //movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
         //movement_server = new MovementAction("movement");
+
         sub_obstacle = n.subscribe<std_msgs::Bool>("/wall_detected", 1, &Brain::obstacleCallback,this);
         sub_object = n.subscribe<geometry_msgs::PointStamped>("/found_object", 1, &Brain::objectCallback,this);
+        sub_map = n.subscribe<nav_msgs::OccupancyGrid>("/grid_map",1,&Brain::mapCallback,this);
+        sub_position = n.subscribe<nav_msgs::Odometry>("/particle_position",1,&Brain::positionCallback,this);
         pub_targets = n.advertise<sensor_msgs::PointCloud>("/explore_targets",1);
+        pub_exploration_done = n.advertise<std_msgs::Bool>("/finished_exploring",1);
         movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
         backwards_movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("backwards_movement", true);
 
@@ -70,6 +92,7 @@ public:
     }
     void backOff()
     {
+        N_FAILS++;
         movement_client->cancelGoal();
         ROS_INFO("Backing");
         //goal.final_point.position.x = 1;
@@ -82,18 +105,43 @@ public:
         // TODO wait Duration(x), otherwise restart server.
 
         ROS_INFO("BRAIN: SERVER IS UP");
+        goal.min_distance = 0.30;
         backwards_movement_client->sendGoal(goal, boost::bind(&Brain::back_doneCb, this, _1, _2));
     }
 
 
     void explorationLoop()
     {
-        // TODO: implement max number of fails before moving on.
-        if (current_point_index == N_POINTS)
+        //ROS_INFO("Point %i",current_point_index);
+        if (!current_point_done)
+        {
+            return;
+        }else if (N_FAILS > MAX_FAILS)
+        {
+            ROS_INFO("Gave up on point %i", current_point_index+1);
+            exploration_targets.points[current_point_index].x = 0;
+            exploration_targets.points[current_point_index].y = 0;
+            current_point_index++;
+            N_FAILS = 0;
+            current_point_done = true;
+        }
+        else if (current_point_index == N_POINTS)
         {
             // return to starting position
+            ROS_INFO("Done exploring.");
+            current_point_done = false;
+            std_msgs::Bool done_msg;
+            done_msg.data = 1;
+            pub_exploration_done.publish(done_msg);
         }else
         {
+            if (exploration_targets.points[current_point_index].x == 0 && exploration_targets.points[current_point_index].y == 0)
+            {
+              current_point_index++;
+              return;
+            }
+            current_point_done = false;
+            ROS_INFO("Moving to point %i",current_point_index+1);
             moveToPosition(exploration_targets.points[current_point_index].x, exploration_targets.points[current_point_index].y, 0);
         }
 
@@ -102,18 +150,62 @@ public:
 
     void initExploration()
     {
-        exploration_targets.points.resize(N_POINTS);
+        ROS_INFO("Init exploration");
+        if (!got_map)
+        {
+            ROS_INFO("No map..");
+            return;
+        }
+
         exploration_targets.header.frame_id = "/map";
+
 
         std::random_device rd;  //Will be used to obtain a seed for the random number engine
         std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-        std::uniform_real_distribution<> dis(0.0, 2.4);
+        std::uniform_real_distribution<> dis(-0.15, 0.15);
 
-        for (int i = 0; i < N_POINTS; i++)
+        float height = map.info.height;
+        float width = map.info.width;
+        int k = 0;
+        for (int j = 1; j <= sqrt_N_POINTS; j++)
         {
-            exploration_targets.points[i].x = (float) dis(gen);
-            exploration_targets.points[i].y = (float) dis(gen);
+            for (int i = 1; i <= sqrt_N_POINTS; i++)
+            {
+                exploration_targets.points[k].x = i*map.info.resolution*height/(sqrt_N_POINTS+1) + (float) dis(gen);
+                exploration_targets.points[k].y = j*map.info.resolution*width/(sqrt_N_POINTS+1) + (float) dis(gen);
+                //ROS_INFO("Point: (%f,%f)",exploration_targets.points[k].x,exploration_targets.points[k].y);
+                k++;
+            }
         }
+        ROS_INFO("Evaluating points");
+        // make sure points are valid
+        int index;
+        for (int i = 0; i < exploration_targets.points.size(); i++)
+        {
+            bool point_ok = 0;
+            while(!point_ok)
+            {
+                index = mToCell(exploration_targets.points[i].y)*width+mToCell(exploration_targets.points[i].x);
+                if(map.data[index] != 0)
+                {
+                    exploration_targets.points[i].x = exploration_targets.points[i].x + (float) dis(gen);
+                    exploration_targets.points[i].y = exploration_targets.points[i].y + (float) dis(gen);
+                }else
+                {
+                    point_ok = 1;
+                }
+            }
+            //ROS_INFO("Point %i out of %i done.",i, exploration_targets.points.size());
+        }
+        ROS_INFO("Points done");
+        current_point_index = 0; // quick fix if positionCallback fucked shit up
+    }
+
+
+    int mToCell(float x)
+    {
+        // converts x from meters to grid cell coordinate
+        return (int) round(x/map.info.resolution);
     }
 
     void publishPoints()
@@ -150,17 +242,25 @@ public:
             const actionlib_movement::MovementResultConstPtr& result) {
         ROS_INFO("BRAIN: server responded with state [%s]", state.toString().c_str());
 
-        if(state == actionlib::SimpleClientGoalState::SUCCEEDED and do_once)
+        if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
-            do_once = false;
-            moveToPosition(2.2,0.3,0.0);
-            /*
-            ROS_INFO("BRAIN: Point %i explored. Moving on!", current_point_index);
+            //do_once = false;
+            //moveToPosition(2.2,0.3,0.0);
+
+            ROS_INFO("BRAIN: Point %i explored. Moving on!", current_point_index+1);
             exploration_targets.points[current_point_index].x = 0;
             exploration_targets.points[current_point_index].y = 0;
+            ROS_INFO("Succeded with point %i", current_point_index+1);
             current_point_index++;
-            explorationLoop();
-            */
+            N_FAILS = 0;
+            //explorationLoop();
+            current_point_done = true;
+
+        }else
+        {
+                N_FAILS++;
+                current_point_done = true;
+                //explorationLoop();
         }
     }
 
@@ -170,6 +270,7 @@ public:
 
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
+            current_point_done = true;
             moveToPosition(goal.final_point.position.x, goal.final_point.position.y, goal.final_point.orientation.z);
             /*
             ROS_INFO("BRAIN: Point %i explored. Moving on!", current_point_index);
@@ -259,7 +360,10 @@ public:
            movement_client->cancelGoal();
            sleep(5);
            ROS_INFO  ("BRAIN: The goal has been cancelled. Need to move backwards.");
-           backOff();
+           if (ok_to_back)
+           {
+             backOff();
+           }
 
 
        }else if (msg -> data == false && stopped == true)
@@ -270,6 +374,44 @@ public:
            //explorationLoop();
 
        }
+    }
+
+    void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& map_msg)
+    {
+        got_map = true;
+        map = *map_msg;
+        //ROS_INFO("got map res %f",map.info.resolution);
+    }
+
+    void positionCallback(const nav_msgs::Odometry::ConstPtr& msg)
+    {
+      int dist = sqrt(pow(previous_location[0]-msg->pose.pose.position.x,2) + pow(previous_location[1]-msg->pose.pose.position.y,2));
+      if (msg->twist.twist.linear.x < 0)
+      {
+        ok_to_back = 0;
+        distance_moved_forwards = 0;
+      }else if (dist > 0.05)
+      {
+        distance_moved_forwards += dist;
+        previous_location[0] = msg->pose.pose.position.x;
+        previous_location[1] = msg->pose.pose.position.x;
+
+        for (int i = current_point_index+1; i < N_POINTS; i++)
+        {
+          dist = sqrt(pow(exploration_targets.points[i].x-msg->pose.pose.position.x,2) + pow(exploration_targets.points[i].y-msg->pose.pose.position.y,2));
+          if (dist < 0.2)
+          {
+            exploration_targets.points[i].x = 0;
+            exploration_targets.points[i].y = 0;
+            ROS_INFO("Passed by point %i. Removing point %i...",i+1);
+          }
+        }
+      }
+
+      if (distance_moved_forwards > 0.2)
+      {
+        ok_to_back = 1;
+      }
     }
 
 
@@ -283,18 +425,28 @@ int main (int argc, char **argv)
   ros::NodeHandle n;
 
   Brain brain(n);
-  ROS_INFO("Move to position.");
-  brain.moveToPosition(0.4,2.0,0.0); // Example action
-  ROS_INFO("spin");
-  ros::spin();
-  //brain.explorationLoop();
-  //ROS_INFO("sleeping");
-  //sleep(4);
-//  brain.backOff();
+  ROS_INFO("Starting exploration mode.");
+  //brain.moveToPosition(0.4,2.0,0.0); // Example action
+
+
+  sleep(1);
+  ros::spinOnce();
+  sleep(1);
+
+  ros::spinOnce();
+
+
+  brain.initExploration();
+
 
   while(ros::ok())
   {
-    //sleep(0.01);
+    brain.publishPoints();
+    brain.explorationLoop();
+    ros::spinOnce();
+    //ROS_INFO("Spinning");
+    sleep(0.1);
   }
+
   return 0;
 }

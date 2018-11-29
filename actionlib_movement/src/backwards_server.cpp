@@ -93,32 +93,40 @@ public:
         path_length = 0;
         int nPoints = 0;
         int i = 0; // loop variable for tf time
-        while(path_length < 0.2)
+        try{
+          while(path_length < 0.2)
+          {
+              // get transform 0.1 seconds back in time
+              tf_listener->lookupTransform("/map", "/base_link",start_time-ros::Duration(i*0.1), base_tf);
+
+              x = base_tf.getOrigin().x();
+              y = base_tf.getOrigin().y();
+
+              if (return_points.empty())
+              {
+                  ROS_INFO("First element added");
+                  nPoints = nPoints + 2;
+                  return_points.push_back(x);
+                  return_points.push_back(y);
+
+              }else if (sqrt( pow(return_points[nPoints-2]-x,2) + pow(return_points[nPoints-1]-y,2) ) > 0.05)
+              {
+                  // Only add if this point is further than 1 cm away from the last point.
+                  path_length += sqrt( pow(return_points[nPoints-2]-x,2) + pow(return_points[nPoints-1]-y,2) );
+                  return_points.push_back(x);
+                  return_points.push_back(y);
+                  nPoints = nPoints + 2;
+                  ROS_INFO("Added element");
+              }
+              i++;
+          }
+        }catch(tf::TransformException ex)
         {
-            // get transform 0.1 seconds back in time
-            tf_listener->lookupTransform("/map", "/base_link",start_time-ros::Duration(i*0.1), base_tf);
-
-            x = base_tf.getOrigin().x();
-            y = base_tf.getOrigin().y();
-
-            if (return_points.empty())
-            {
-                ROS_INFO("First element added");
-                nPoints = nPoints + 2;
-                return_points.push_back(x);
-                return_points.push_back(y);
-
-            }else if (sqrt( pow(return_points[nPoints-2]-x,2) + pow(return_points[nPoints-1]-y,2) ) > 0.05)
-            {
-                // Only add if this point is further than 1 cm away from the last point.
-                path_length += sqrt( pow(return_points[nPoints-2]-x,2) + pow(return_points[nPoints-1]-y,2) );
-                return_points.push_back(x);
-                return_points.push_back(y);
-                nPoints = nPoints + 2;
-                ROS_INFO("Added element");
-            }
-            i++;
+          ROS_INFO("Exception caught in backwards server.");
+          return_points.resize(2);
+          return return_points;
         }
+
         ROS_INFO("Lenght: %f", path_length);
 
         path_msg.poses.resize(nPoints/2);
@@ -154,7 +162,16 @@ public:
 
         while ( i<= path_points.size() )
         {
-            if (as_.isPreemptRequested() || !ros::ok())
+            if (path_points.size() == 2)
+            {
+              vel.linear.x = 0;
+              vel.angular.z = 0;
+              pub_vel.publish(vel);
+              as_.publishFeedback(feedback_);
+              as_.setAborted();
+              success = false;
+              break;
+            }else if (as_.isPreemptRequested() || !ros::ok())
             {
                 ROS_INFO("SERVER: %s: Server preempted ", action_name_.c_str());
                 vel.linear.x = 0;
@@ -205,7 +222,7 @@ public:
             distance_to_goal = sqrt(pow((path_points[nPoints*2-2])-feedback_.current_point.position.x,2)+pow((path_points[nPoints*2-1])-feedback_.current_point.position.y,2));
             //ROS_INFO("Current distance to goal: %f",distance_to_goal);
 
-            if(distance_to_goal<= 0.03)
+            if(distance_to_goal<= 0.02)
             {
                 vel.linear.x = 0;
                 vel.angular.z = 0;
