@@ -63,9 +63,9 @@ class PathCreator{
 
 		//Print map to disk
 		void printMap(std::vector<cell> path){
-			char output [nRows][nColumns];
-			for(int i=0;i<nRows;i++){
-				for(int j=0;j<nColumns;j++){
+			char output [nColumns][nRows];
+			for(int i=0;i<nColumns;i++){
+				for(int j=0;j<nRows;j++){
 					if(map[i][j] < THICK){
 						output[i][j] = '.';
 					}
@@ -80,8 +80,8 @@ class PathCreator{
 			}
 			std::ofstream myfile;
 			myfile.open("/home/ras16/paths/map_visualization.txt");
-			for(int i=0;i<nRows;i++){
-				for(int j=0;j<nColumns;j++){
+			for(int i=0;i<nColumns;i++){
+				for(int j=0;j<nRows;j++){
 					myfile << output[i][j];
 				}
 				myfile << "\n";
@@ -95,8 +95,8 @@ class PathCreator{
 			}
 			std::ofstream myfile_2;
 			myfile_2.open("/home/ras16/paths/path_visualization.txt");
-			for(int i=0;i<nRows;i++){
-				for(int j=0;j<nColumns;j++){
+			for(int i=0;i<nColumns;i++){
+				for(int j=0;j<nRows;j++){
 					myfile_2 << output[i][j];
 				}
 				myfile_2 << "\n";
@@ -112,27 +112,27 @@ class PathCreator{
 
 		void mapMatrix(){ //Converts the data into a matrix
 			ROS_INFO("Transform to Map array");
-			for (int i =0; i<nRows; i++){
+			for (int i =0; i<nColumns; i++){
 				//ROS_INFO("%i",i);
-				map[i].resize(nColumns, UNKNOWN); //Give the vectors of the matrix a length
+				map[i].resize(nRows, UNKNOWN); //Give the vectors of the matrix a length
 			}
 			//ROS_INFO("TEst");
-			for(int i = 0; i<nRows; i++){
-				for (int j = 0; j < nColumns; j++){
+			for(int i = 0; i<nColumns; i++){
+				for (int j = 0; j < nRows; j++){
 					map[i][j]=data[j*nColumns+i];
 				}
 			}
 		}
 
 		void smoothMap(){
-			for (int i = 0; i < nRows; i++){
-				for (int j = 0; j<nColumns; j++){
+			for (int i = 0; i < nColumns; i++){
+				for (int j = 0; j<nRows; j++){
 					//ROS_INFO("nEXT");
 					if (map[i][j]>WALL){
 						//Make the wall thicker (put a value <WALL and >FREE) in a squared area of size 2*ROBSIZE
 						for (int m = -ROBSIZE_Cell; m <= ROBSIZE_Cell; m++){
 							for (int n = -ROBSIZE_Cell; n <= ROBSIZE_Cell; n++){
-								if (i>=(-m) && (i+m)<(nRows) && j>=(-n) && (j+n)<(nColumns) && map[i+m][j+n]<WALL){
+								if (i>=(-m) && (i+m)<(nColumns) && j>=(-n) && (j+n)<(nRows) && map[i+m][j+n]<WALL){
 									map[i+m][j+n]=THICK;
 								}
 							}
@@ -147,7 +147,7 @@ class PathCreator{
 		void unsmoothPoints(int x, int y){
 			for (int m = -(ROBSIZE_Cell-1); m <= (ROBSIZE_Cell-1); m++){
 				for (int n = -(ROBSIZE_Cell-1); n <= (ROBSIZE_Cell-1); n++){
-					if (x>=(-m) && (x+m)<(nRows) && y>=(-n) && (y+n)<(nColumns) && map[x+m][y+n]<WALL){
+					if (x>=(-m) && (x+m)<(nColumns) && y>=(-n) && (y+n)<(nRows) && map[x+m][y+n]<WALL){
 						map[x+m][y+n]=0; //Clear the points next to the given point
 					}
 				}
