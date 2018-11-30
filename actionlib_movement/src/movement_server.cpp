@@ -150,6 +150,21 @@ public:
         return return_points;
     }
 
+
+    std::vector<float>  getStraightPath()
+    {
+        std::vector<float> return_points;
+
+        return_points.push_back(feedback_.current_point.position.x);
+        return_points.push_back(feedback_.current_point.position.y);
+        return_points.push_back(feedback_.current_point.position.x - 0.15* cos(heading));
+        return_points.push_back(feedback_.current_point.position.y - 0.15* sin(heading));
+
+        return return_points;
+    }
+
+
+
     void PathRos(std::vector<float> path){ //Publish the path points in rviz
 	     int j = 0;
        int i= 0;
@@ -195,7 +210,7 @@ public:
         if (goal->backwards == 1)
         {
           ROS_INFO("SERVER: Got backwards goal");
-          path_points = getPath();
+          path_points = getStraightPath();
           factor_linear = -0.08;
           factor_angular = -0.5;
         }else
@@ -208,6 +223,8 @@ public:
 
         PathRos(path_points); //Publish the path in rviz
         int nPoints = path_points.size() / 2;
+        float required_dist = goal->min_distance;
+        ROS_INFO("SERVER: Required distance to goal: %f",required_dist);
 
         //ROS_INFO("number of path points: %i",path_points.size());
         while ( i<= path_points.size() )
@@ -276,10 +293,10 @@ public:
 
             as_.publishFeedback(feedback_);
 
-            distance_to_goal = sqrt(pow((path_points[nPoints*2-2])-feedback_.current_point.position.x,2)+pow((nPoints*2-1)-feedback_.current_point.position.y,2));
+            distance_to_goal = sqrt(pow(path_points[nPoints*2-2]-feedback_.current_point.position.x,2)+pow(path_points[nPoints*2-1]-feedback_.current_point.position.y,2));
 
           //ROS_INFO("Current distance to goal: %f",distance_to_goal);
-            float required_dist = goal->min_distance;
+            //float required_dist = goal->min_distance;
             //ROS_INFO("SERVER: Required distance to goal: %f",required_dist);
             if(distance_to_goal<= required_dist)
             {
