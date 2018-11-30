@@ -112,7 +112,7 @@ public:
         int nPoints = 0;
         int i = 0; // loop variable for tf time
         try{
-          while(path_length < 0.15)
+          while(path_length < 0.2)
           {
               // get transform 0.1 seconds back in time
               tf_listener->lookupTransform("/map", "/base_link",start_time-ros::Duration(i*0.1), base_tf);
@@ -127,7 +127,7 @@ public:
                   return_points.push_back(x);
                   return_points.push_back(y);
 
-              }else if (sqrt( pow(return_points[nPoints-2]-x,2) + pow(return_points[nPoints-1]-y,2) ) > 0.05)
+              }else if (sqrt( pow(return_points[nPoints-2]-x,2) + pow(return_points[nPoints-1]-y,2) ) > 0.04)
               {
                   // Only add if this point is further than 1 cm away from the last point.
                   path_length += sqrt( pow(return_points[nPoints-2]-x,2) + pow(return_points[nPoints-1]-y,2) );
@@ -179,7 +179,7 @@ public:
             //ROS_INFO("x = %f, y = %f, w = %f",path_Ros.poses[j].pose.position.x, path_Ros.poses[j].pose.position.y, path_Ros.poses[j].pose.orientation.w);
           }
           pub_path.publish(path_Ros);
-          ROS_INFO("The path has been published");
+          //ROS_INFO("The path has been published");
     }
 
 
@@ -191,8 +191,8 @@ public:
         float radius = 0.08; //meters
         PathCreator current_path (nColumns_);
         std::vector<float> path_points;
-
-        if (goal->backwards)
+        //ROS_INFO("SERVER: Backwards = %s", goal->backwards ? "true" : "false" );
+        if (goal->backwards == 1)
         {
           ROS_INFO("SERVER: Got backwards goal");
           path_points = getPath();
@@ -227,7 +227,7 @@ public:
           //ROS_INFO("Entered while Loop");
             if (as_.isPreemptRequested() || !ros::ok())
             {
-                ROS_INFO("SERVER: %s: Server preempted ", action_name_.c_str());
+                ROS_INFO("SERVER: %s: Server preempted by client ", action_name_.c_str());
 		            //ROS_INFO("CURRENT POSITION: %f, %f", feedback_.current_point.position.x, feedback_.current_point.position.y);
                 vel.linear.x = 0;
                 vel.angular.z = 0;
@@ -256,7 +256,7 @@ public:
 	          theta = atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x));
             phi = -heading + theta;
 
-            if (goal->backwards)
+            if (goal->backwards == 1)
             {
               phi = -phi + M_PI;
 
@@ -279,8 +279,9 @@ public:
             distance_to_goal = sqrt(pow((path_points[nPoints*2-2])-feedback_.current_point.position.x,2)+pow((nPoints*2-1)-feedback_.current_point.position.y,2));
 
           //ROS_INFO("Current distance to goal: %f",distance_to_goal);
-
-            if(distance_to_goal<= goal->min_distance)
+            float required_dist = goal->min_distance;
+            //ROS_INFO("SERVER: Required distance to goal: %f",required_dist);
+            if(distance_to_goal<= required_dist)
             {
                 // set desired orientation;
                 vel.linear.x = 0;

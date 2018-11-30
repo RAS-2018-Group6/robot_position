@@ -111,7 +111,7 @@ class PathCreator{
     }
 
 		void mapMatrix(){ //Converts the data into a matrix
-			ROS_INFO("Transform to Map array");
+			//ROS_INFO("Transform to Map array");
 			for (int i =0; i<nColumns; i++){
 				//ROS_INFO("%i",i);
 				map[i].resize(nRows, UNKNOWN); //Give the vectors of the matrix a length
@@ -141,7 +141,7 @@ class PathCreator{
 					//ROS_INFO("Out of if, i = %i,  j= %i ", i, j);
 				}
 			}
-			ROS_INFO("Finished wall thickening");
+			//ROS_INFO("Finished wall thickening");
 		}
 
 		void unsmoothPoints(int x, int y){
@@ -153,7 +153,7 @@ class PathCreator{
 				}
 			}
 
-		ROS_INFO("Finished clearing %i, %i", x, y);
+		//ROS_INFO("Finished clearing %i, %i", x, y);
 		}
 
 		bool free_line(int x0, int y0, int x1, int y1){
@@ -240,9 +240,9 @@ class PathCreator{
 				}
 				smooth_path.push_back(path[iterations-1]);
 			}
-			ROS_INFO("Number of points of the smooth path: %i", smooth_path.size());
+			//ROS_INFO("Number of points of the smooth path: %i", smooth_path.size());
 
-			ROS_INFO("The path has been smoothed");
+			//ROS_INFO("The path has been smoothed");
 
 			return smooth_path;
 		}
@@ -284,7 +284,7 @@ class PathCreator{
 				path_vector.push_back(now);
 
 			}
-									ROS_INFO("End of build path");
+									//ROS_INFO("End of build path");
 				return path_vector;
 		}
 
@@ -303,7 +303,7 @@ class PathCreator{
 			smoothMap();
 			unsmoothPoints(x_robot, y_robot);
 			unsmoothPoints(x_goal, y_goal);
-			ROS_INFO("Start A*");
+			//ROS_INFO("Start A*");
 
 			g = 0;
 			h = heuristic(coords, goal_coords);
@@ -339,7 +339,7 @@ class PathCreator{
 
 			if(x_goal < 0 || y_goal < 0 || x_goal >= lengthx || y_goal >= lengthy){
 
-				ROS_INFO("The coordinates are not within the limits");
+				//ROS_INFO("The coordinates are not within the limits");
 
 				return not_valid;
 			}
@@ -355,7 +355,7 @@ int iter = 0;
 //ROS_INFO("Open has something: %i",!open.empty());
 
 				if(now.coords[0]==goal_coords[0] && now.coords[1]==goal_coords[1]){ //If I already have the solution for the path:
-					ROS_INFO("Path is built. goal is %i, %i", goal_coords[0],goal_coords[1]);
+					//ROS_INFO("Path is built. goal is %i, %i", goal_coords[0],goal_coords[1]);
 					return build_path(now, &close); //Return the path (calling the function build_path)
 
 
@@ -507,7 +507,7 @@ int iter = 0;
 
 			//	ROS_INFO("aFTER IF NUMBER 4");
 			}
-			ROS_INFO("No path has been found");
+			//ROS_INFO("No path has been found");
 
 			return not_valid; //If we are here, it means that there is no path to that point (the while loop has finished and no path has been found)
 		}
@@ -522,7 +522,7 @@ int iter = 0;
 			data = map_data;
 
 			path_cell = astar(mToCell(x_robot),mToCell(y_robot),mToCell(x_dest),mToCell(y_dest));
-			ROS_INFO("number of path points: %i",path_cell.size());
+			//ROS_INFO("number of path points: %i",path_cell.size());
 
 			if (path_cell.size()>1){ //Call the smoothing function just if the path exists
 				path_cell = smoothPath(path_cell);
@@ -543,7 +543,7 @@ int iter = 0;
 			std::reverse(path.begin(), path.end());
 			//ROS_INFO("Test");
 			printMap(path_cell);
-			ROS_INFO("Print path to hard disk");
+			//ROS_INFO("Print path to hard disk");
 			return path;
 
 		}

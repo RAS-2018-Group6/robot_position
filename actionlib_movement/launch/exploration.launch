@@ -4,6 +4,5 @@
 
   <node pkg="actionlib_movement" type="movement_server" name="movement_server" output="screen"/>
 
-  <node pkg="actionlib_movement" type="backwards_server" name="backwards_server" output="screen"/>
 
 </launch>
