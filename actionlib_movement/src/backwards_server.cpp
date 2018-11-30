@@ -94,7 +94,7 @@ public:
         int nPoints = 0;
         int i = 0; // loop variable for tf time
         try{
-          while(path_length < 0.2)
+          while(path_length < 0.15)
           {
               // get transform 0.1 seconds back in time
               tf_listener->lookupTransform("/map", "/base_link",start_time-ros::Duration(i*0.1), base_tf);
@@ -222,7 +222,7 @@ public:
             distance_to_goal = sqrt(pow((path_points[nPoints*2-2])-feedback_.current_point.position.x,2)+pow((path_points[nPoints*2-1])-feedback_.current_point.position.y,2));
             //ROS_INFO("Current distance to goal: %f",distance_to_goal);
 
-            if(distance_to_goal<= 0.02)
+            if(distance_to_goal<= 0.05)
             {
                 vel.linear.x = 0;
                 vel.angular.z = 0;

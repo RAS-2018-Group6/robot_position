@@ -26,12 +26,14 @@ private:
     ros::Publisher pub_path;
     ros::Subscriber sub_pose;
     ros::Subscriber sub_map_;
+    tf::TransformListener *tf_listener;
+    tf::StampedTransform base_tf;
 
 
     tf::Pose pose;
     geometry_msgs::Twist vel;
-    float a;
-    float k;
+    float factor_linear;
+    float factor_angular;
     float heading;
 
     float theta;
@@ -57,9 +59,9 @@ public:
         sub_pose = nh_.subscribe<nav_msgs::Odometry>("/particle_position", 1, &MovementAction::poseCallback, this);
         sub_map_ = nh_.subscribe<nav_msgs::OccupancyGrid>("/grid_map",1,&MovementAction::mapCallback,this);
 
-
-        a = 0.1; // linear velocity
-        k = 0.5; // factor for angular velocity
+        tf_listener = new tf::TransformListener();
+        factor_linear = 0.1; // linear velocity
+        factor_angular = 0.5; // factor for angular velocity
         theta = 0.0;
 
 
@@ -95,6 +97,58 @@ public:
 				data_ = msg-> data;
 
 		}
+
+    std::vector<float>  getPath()
+    {
+        //ROS_INFO("Calculate path");
+        float x,y, x_prev, y_prev, path_length;
+        std::vector<float> return_points;
+        ros::Time start_time = ros::Time::now();
+
+        tf_listener->lookupTransform("/map", "/base_link",ros::Time(0), base_tf);
+        start_time = base_tf.stamp_;
+
+        path_length = 0;
+        int nPoints = 0;
+        int i = 0; // loop variable for tf time
+        try{
+          while(path_length < 0.15)
+          {
+              // get transform 0.1 seconds back in time
+              tf_listener->lookupTransform("/map", "/base_link",start_time-ros::Duration(i*0.1), base_tf);
+
+              x = base_tf.getOrigin().x();
+              y = base_tf.getOrigin().y();
+
+              if (return_points.empty())
+              {
+                  //ROS_INFO("First element added");
+                  nPoints = nPoints + 2;
+                  return_points.push_back(x);
+                  return_points.push_back(y);
+
+              }else if (sqrt( pow(return_points[nPoints-2]-x,2) + pow(return_points[nPoints-1]-y,2) ) > 0.05)
+              {
+                  // Only add if this point is further than 1 cm away from the last point.
+                  path_length += sqrt( pow(return_points[nPoints-2]-x,2) + pow(return_points[nPoints-1]-y,2) );
+                  return_points.push_back(x);
+                  return_points.push_back(y);
+                  nPoints = nPoints + 2;
+                  //ROS_INFO("Added element");
+              }
+              i++;
+          }
+        }catch(tf::TransformException ex)
+        {
+          ROS_INFO("Exception caught in backwards server.");
+          return_points.resize(2);
+          return return_points;
+        }
+
+        //ROS_INFO("Lenght: %f", path_length);
+
+        return return_points;
+    }
 
     void PathRos(std::vector<float> path){ //Publish the path points in rviz
 	     int j = 0;
@@ -137,32 +191,31 @@ public:
         float radius = 0.08; //meters
         PathCreator current_path (nColumns_);
         std::vector<float> path_points;
-        ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
-      //  path_points = current_path.getPath(0.2,0.2,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
-        path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
-        PathRos(path_points); //Publish the path in rviz
 
-      //  path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
+        if (goal->backwards)
+        {
+          ROS_INFO("SERVER: Got backwards goal");
+          path_points = getPath();
+          factor_linear = -0.08;
+          factor_angular = -0.5;
+        }else
+        {
+          ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
+          path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
+          factor_linear = 0.1; // linear velocity
+          factor_angular = 0.5; // factor for angular velocity
+        }
+
+        PathRos(path_points); //Publish the path in rviz
         int nPoints = path_points.size() / 2;
 
-
-        /*
-        ROS_INFO("Path points:");
-        for (int ind = 0; ind<path_points.size(); ind = ind+2)
-        {
-            ROS_INFO("[%f, %f]",path_points[ind], path_points[ind+1]);
-        }
-        */
-
-
-        ROS_INFO("number of path points: %i",path_points.size());
-
+        //ROS_INFO("number of path points: %i",path_points.size());
         while ( i<= path_points.size() )
         {
             if (nPoints <= 1){
-              ROS_INFO("SERVER: %s: Server aborted ", action_name_.c_str());
-              ROS_INFO("CURRENT POSITION: %f, %f", feedback_.current_point.position.x, feedback_.current_point.position.y);
-              ROS_INFO("No path found to goal position!");
+              ROS_INFO("SERVER: no path, %s: Server aborted ", action_name_.c_str());
+              //ROS_INFO("CURRENT POSITION: %f, %f", feedback_.current_point.position.x, feedback_.current_point.position.y);
+              //ROS_INFO("No path found to goal position!");
               vel.linear.x = 0;
               vel.angular.z = 0;
               pub_vel.publish(vel);
@@ -175,7 +228,7 @@ public:
             if (as_.isPreemptRequested() || !ros::ok())
             {
                 ROS_INFO("SERVER: %s: Server preempted ", action_name_.c_str());
-		            ROS_INFO("CURRENT POSITION: %f, %f", feedback_.current_point.position.x, feedback_.current_point.position.y);
+		            //ROS_INFO("CURRENT POSITION: %f, %f", feedback_.current_point.position.x, feedback_.current_point.position.y);
                 vel.linear.x = 0;
                 vel.angular.z = 0;
                 pub_vel.publish(vel);
@@ -200,15 +253,15 @@ public:
                 }
             }
 
-
-          //  ROS_INFO("At position: [%f, %f]", feedback_.current_point.position.x, feedback_.current_point.position.y);
-          //  ROS_INFO("Aiming at: [%f, %f]", path_points[i], path_points[i+1]);
-
-	        //theta = atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x));
-
 	          theta = atan2 ((path_points[i+1]-feedback_.current_point.position.y),(path_points[i]-feedback_.current_point.position.x));
-
             phi = -heading + theta;
+
+            if (goal->backwards)
+            {
+              phi = -phi + M_PI;
+
+            }
+
             if (phi > M_PI)
             {
               phi = phi - 2*M_PI;
@@ -216,16 +269,14 @@ public:
             else if(phi < -M_PI){
               phi = phi + 2*M_PI;
             }
-	    //ROS_INFO("HEADING: %f, THETA: %f, PHI: %f",heading,theta,phi);
 
-
-            vel.linear.x = a*pow( (M_PI-fabs(phi)) / M_PI ,2);
-            vel.angular.z = k*phi;
+            vel.linear.x = factor_linear*pow( (M_PI-fabs(phi)) / M_PI ,2);
+            vel.angular.z = factor_angular*phi;
             pub_vel.publish(vel);
 
             as_.publishFeedback(feedback_);
 
-            distance_to_goal = sqrt(pow((goal->final_point.position.x)-feedback_.current_point.position.x,2)+pow((goal->final_point.position.y)-feedback_.current_point.position.y,2));
+            distance_to_goal = sqrt(pow((path_points[nPoints*2-2])-feedback_.current_point.position.x,2)+pow((nPoints*2-1)-feedback_.current_point.position.y,2));
 
           //ROS_INFO("Current distance to goal: %f",distance_to_goal);
 

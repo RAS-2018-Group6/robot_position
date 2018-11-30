@@ -1,6 +1,7 @@
 #goal definition
 geometry_msgs/Pose final_point
 float32 min_distance
+bool backwards
 ---
 #result definition
 geometry_msgs/Pose current_point

@@ -13,6 +13,7 @@
 #include <vector>
 #include "arduino_servo_control/SetServoAngles.h"
 #include <sensor_msgs/PointCloud.h>
+#include <sensor_msgs/Imu.h>
 #include <random>
 
 class Brain
@@ -47,6 +48,7 @@ public:
     ros::Subscriber sub_obstacle;
     ros::Subscriber sub_object;
     ros::Subscriber sub_map;
+    ros::Subscriber sub_IMU;
     ros::Subscriber sub_position;
     ros::Publisher pub_targets;
     ros::Publisher pub_exploration_done;
@@ -77,6 +79,8 @@ public:
         sub_object = n.subscribe<geometry_msgs::PointStamped>("/found_object", 1, &Brain::objectCallback,this);
         sub_map = n.subscribe<nav_msgs::OccupancyGrid>("/grid_map",1,&Brain::mapCallback,this);
         sub_position = n.subscribe<nav_msgs::Odometry>("/particle_position",1,&Brain::positionCallback,this);
+        sub_IMU = n.subscribe<sensor_msgs::Imu>("/imu/data",1,&Brain::imuCallback,this);
+        //sub_pause = n.subscribe<std_msgs::Bool>("/object_detected",1,&Brain::pauseCallback,this);
         pub_targets = n.advertise<sensor_msgs::PointCloud>("/explore_targets",1);
         pub_exploration_done = n.advertise<std_msgs::Bool>("/finished_exploring",1);
         movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
@@ -105,7 +109,6 @@ public:
         // TODO wait Duration(x), otherwise restart server.
 
         ROS_INFO("BRAIN: SERVER IS UP");
-        goal.min_distance = 0.30;
         backwards_movement_client->sendGoal(goal, boost::bind(&Brain::back_doneCb, this, _1, _2));
     }
 
@@ -316,6 +319,7 @@ public:
         goal.final_point.position.x = x;
         goal.final_point.position.y = y;
         goal.final_point.orientation.z = z;
+        goal.min_distance = 0.30; // during exploration
         // add orientation
 
         ROS_INFO("BRAIN: Waiting for server.");
@@ -375,12 +379,50 @@ public:
 
        }
     }
+/*
+    void pauseCallback(const std_msgs::Bool::ConstPtr& msg)
+    {
+       if (msg -> data == true && stopped == false)
+       {
+           stopped = true;
+           movement_client->cancelGoal();
+           sleep(5);
+           ROS_INFO  ("BRAIN: The goal has been cancelled. Evaluating object.");
 
+       }else if (msg -> data == false && stopped == true)
+       {
+           ROS_INFO("BRAIN: Obstacle not visible anymore.");
+           stopped = false;
+
+           //explorationLoop();
+
+       }
+    }
+*/
     void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& map_msg)
     {
         got_map = true;
         map = *map_msg;
         //ROS_INFO("got map res %f",map.info.resolution);
+    }
+
+    void imuCallback(const sensor_msgs::Imu::ConstPtr& msg)
+    {
+      float acceleration_y = msg->linear_acceleration.y;
+
+      if (acceleration_y > 3.5 && stopped == false)
+      {
+          stopped = true;
+          movement_client->cancelGoal();
+          ROS_INFO  ("BRAIN: IMU says we hit a wall.");
+          if (ok_to_back)
+          {
+            backOff();
+          }
+      }else
+      {
+          stopped = false;
+      }
     }
 
     void positionCallback(const nav_msgs::Odometry::ConstPtr& msg)

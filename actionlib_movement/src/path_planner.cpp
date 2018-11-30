@@ -16,9 +16,9 @@
 //#define HIGH_COST 10
 #define FREE 30 //Asume there is nothing if the value is less than FREE
 #define UNKNOWN -7
-#define WALL 59
+#define WALL 98
 #define THICK 50
-#define ROBSIZE 0.15 //m (size of the robot that we want to thicken the walls with)
+#define ROBSIZE 0.10 //m (size of the robot that we want to thicken the walls with)
 
 /*class MapNode{
 	public:
