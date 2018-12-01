@@ -9,12 +9,14 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/Odometry.h>
 #include <std_msgs/Bool.h>
+#include <std_msgs/String.h>
 #include "object.cpp"
 #include <vector>
 #include "arduino_servo_control/SetServoAngles.h"
 #include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/Imu.h>
 #include <random>
+#include <string>
 
 class Brain
 {
@@ -31,12 +33,15 @@ private:
     arduino_servo_control::SetServoAngles srv;
     sensor_msgs::PointCloud exploration_targets;
     nav_msgs::OccupancyGrid map;
+    std_msgs::String sound_msg;
     bool current_action_done;
     int current_point_index;
     int N_FAILS;
     int MAX_FAILS;
     int sqrt_N_POINTS;
     int N_POINTS;
+    int map_height;
+    int map_width;
     std::vector<float> previous_location; // keep tracked of moved distance to limit backof
     std::vector<float> starting_area;
     float distance_moved_forwards; // meters moved since last time we moved backwards
@@ -54,6 +59,7 @@ public:
     ros::Subscriber sub_position;
     ros::Publisher pub_targets;
     ros::Publisher pub_exploration_done;
+    ros::Publisher pub_speaker;
 
     Brain(ros::NodeHandle node)
     {
@@ -68,11 +74,11 @@ public:
 
         N_FAILS = 0;
         MAX_FAILS = 4;
-        sqrt_N_POINTS = 2;
+        sqrt_N_POINTS = 4;
         N_POINTS = pow(sqrt_N_POINTS,2);
         previous_location.resize(2);
         starting_area.resize(2);
-        starting_area[0] = 2.1;
+        starting_area[0] = 0.23;
         starting_area[1] = 0.3;
 
         ok_to_back = 1;
@@ -88,6 +94,9 @@ public:
 
         pub_targets = n.advertise<sensor_msgs::PointCloud>("/explore_targets",1);
         pub_exploration_done = n.advertise<std_msgs::Bool>("/finished_exploring",1);
+        pub_speaker = n.advertise<std_msgs::String>("/espeak/string",10);
+
+
 
         movement_client = new actionlib::SimpleActionClient<actionlib_movement::MovementAction>("movement", true);
         gripper_client = n.serviceClient<arduino_servo_control::SetServoAngles>("/arduino_servo_control/set_servo_angles");
@@ -104,6 +113,8 @@ public:
 
     void backOff()
     {
+        sound_msg.data = "Oops! Backing";
+        pub_speaker.publish(sound_msg);
         N_FAILS++;
         ROS_INFO("BRAIN: Backing");
         //goal.final_point.position.x = 1;
@@ -137,6 +148,9 @@ public:
         {
             // return to starting position
             ROS_INFO("Done exploring. Returning to starting area");
+            sound_msg.data = "Woho! Done exploring. Returning to starting area";
+            pub_speaker.publish(sound_msg);
+
             sleep(0.5);
             gripperUp();
             sleep(0.5);
@@ -149,12 +163,15 @@ public:
         else if (N_FAILS > MAX_FAILS)
         {
             ROS_INFO("Gave up on point %i", current_point_index+1);
+            sound_msg.data = "Point is impossible to reach! I give up.";
+            pub_speaker.publish(sound_msg);
+
             exploration_targets.points[current_point_index].x = 0;
             exploration_targets.points[current_point_index].y = 0;
             current_point_index++;
             N_FAILS = 0;
             //movement_client->cancelGoal();
-            ROS_INFO("explorationLoop: too many fails. action done = true");
+            //ROS_INFO("explorationLoop: too many fails. action done = true");
             current_action_done = true;
         }
         else
@@ -165,9 +182,13 @@ public:
               current_point_index++;
               return;
             }
-            ROS_INFO("explorationLoop: else case. action done = false");
+            //ROS_INFO("explorationLoop: else case. action done = false");
             current_action_done = false;
             ROS_INFO("Moving to point %i",current_point_index+1);
+
+            sound_msg.data = "Exploring point";
+            pub_speaker.publish(sound_msg);
+
             explorePosition(exploration_targets.points[current_point_index].x, exploration_targets.points[current_point_index].y);
         }
     }
@@ -222,6 +243,9 @@ public:
         }
         ROS_INFO("Points done");
         current_point_index = 0; // quick fix if positionCallback fucked shit up
+
+        sound_msg.data = "Exploration initiated";
+        pub_speaker.publish(sound_msg);
     }
 
 
@@ -263,33 +287,61 @@ public:
 
     void doneCb(const actionlib::SimpleClientGoalState& state,
             const actionlib_movement::MovementResultConstPtr& result) {
-        ROS_INFO("BRAIN: server responded with state [%s]", state.toString().c_str());
 
+        ROS_INFO("BRAIN: server responded with state [%s]", state.toString().c_str());
+        goal.use_smooth_map = 0;
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
-            //do_once = false;
-            //moveToPosition(2.2,0.3,0.0);
-
             ROS_INFO("BRAIN: Point %i explored. Moving on!", current_point_index+1);
+            sound_msg.data = std::string("Point %i explored. Moving on!",current_point_index+1);
+            pub_speaker.publish(sound_msg);
+            sound_msg.data = "Easy";
+            pub_speaker.publish(sound_msg);
+
             exploration_targets.points[current_point_index].x = 0;
             exploration_targets.points[current_point_index].y = 0;
             ROS_INFO("Succeded with point %i", current_point_index+1);
             current_point_index++;
             N_FAILS = 0;
-            ROS_INFO("donecb: succeded. action done = true");
             current_action_done = true;
-
+        }else if (state == actionlib::SimpleClientGoalState::ABORTED)
+        {
+            //No path found by server.
+            goal.use_smooth_map = 1;
+            current_action_done =1;
         }else if (!is_backing)
         {
             //N_FAILS++;
-            ROS_INFO("donecb: fail. action done = true");
+            //ROS_INFO("donecb: fail. action done = true");
             current_action_done = true;
+        }
+    }
+
+    void temporaryGoalCb(const actionlib::SimpleClientGoalState& state,
+            const actionlib_movement::MovementResultConstPtr& result) {
+
+        if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
+        {
+            ROS_INFO("Succeeded temporary goal");
+            goal.use_smooth_map = 0;
+            current_action_done = true;
+        }else
+        {
+           if (goal.use_smooth_map == 1)
+           {
+             goal.use_smooth_map = 0;
+             moveToTemporaryGoal();
+           }else if (goal.use_smooth_map == 0)
+           {
+             goal.use_smooth_map == 1;
+             moveToTemporaryGoal();
+           }
         }
     }
 
     void returnCb(const actionlib::SimpleClientGoalState& state,
             const actionlib_movement::MovementResultConstPtr& result) {
-
+        goal.use_smooth_map = 0;
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
             ROS_INFO("Succeded to reach stating area.");
@@ -300,10 +352,22 @@ public:
             gripperUp();
             sleep(0.5);
             gripperDown();
+
+            sound_msg.data = "Im done.";
+            pub_speaker.publish(sound_msg);
+
+            // braing loop ends here.
+        }else if (state == actionlib::SimpleClientGoalState::ABORTED)
+        {
+            //No path found by server.
+            goal.use_smooth_map = 1;
+            current_action_done = 1;
+
+
         }else if (!is_backing)
         {
             //N_FAILS++;
-            ROS_INFO("returncb: action done = true");
+            //ROS_INFO("returncb: action done = true");
             current_action_done = true;
         }
     }
@@ -312,13 +376,13 @@ public:
             const actionlib_movement::MovementResultConstPtr& result)
         {
 
-
+        goal.use_smooth_map = 0;
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
             //current_action_done = true;
             ROS_INFO("BRAIN: Backing succeded.");
             N_FAILS--;
-            ROS_INFO("back_donecb: succeded. action done = true");
+            //ROS_INFO("back_donecb: succeded. action done = true");
             current_action_done = true;
 
             //moveToPosition(goal.final_point.position.x, goal.final_point.position.y, goal.final_point.orientation.z);
@@ -332,7 +396,7 @@ public:
         }else
         {
           ROS_INFO("BRAIN: backwards failed [%s]", state.toString().c_str());
-          ROS_INFO("back_donecb: fail. action done = true");
+          //ROS_INFO("back_donecb: fail. action done = true");
           current_action_done = true;
         }
         is_backing = false;
@@ -386,6 +450,37 @@ public:
 
         //ROS_INFO("BRAIN: SERVER IS UP");
         movement_client->sendGoal(goal, boost::bind(&Brain::doneCb, this, _1, _2));
+    }
+
+    void moveToTemporaryGoal()
+    {
+
+        float x,y;
+        int index;
+        bool point_ok = 0;
+        std::random_device rd;  //Will be used to obtain a seed for the random number engine
+        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+        std::uniform_real_distribution<> dis(-0.4, 0.4);
+
+        while(!point_ok)
+        {
+            x = previous_location[0] + (float) dis(gen);
+            y = previous_location[1] + (float) dis(gen);
+            index = mToCell(y)*map_width+mToCell(x);
+            if (index < map_width*map_height)
+            {
+              if(map.data[index] == 0)
+              {
+                  point_ok = 1;
+              }
+            }
+        }
+        goal.min_distance = 0.10;
+        goal.final_point.position.x = x;
+        goal.final_point.position.y = y;
+
+        //ROS_INFO("BRAIN: SERVER IS UP");
+        movement_client->sendGoal(goal, boost::bind(&Brain::temporaryGoalCb, this, _1, _2));
     }
 
     void returnToStartingArea()
@@ -446,7 +541,7 @@ public:
            is_backing = true;
            ROS_INFO  ("BRAIN: The goal has been cancelled. Mapping obstacle.");
            movement_client->cancelGoal();
-           ROS_INFO("ostaclecallback: . action done = false");
+           //ROS_INFO("ostaclecallback: . action done = false");
            current_action_done = false;
            sleep(5);
            //current_action_done = false;
@@ -457,7 +552,7 @@ public:
 
            }else if (!is_backing)
            {
-             ROS_INFO("obstaclecallback: not backing. action done = true");
+             //ROS_INFO("obstaclecallback: not backing. action done = true");
              current_action_done = true;
            }else
            {
@@ -495,6 +590,8 @@ public:
     {
         got_map = true;
         map = *map_msg;
+        map_width = map_msg->info.width;
+        map_height = map_msg->info.height;
         //ROS_INFO("got map res %f",map.info.resolution);
     }
 
@@ -502,11 +599,13 @@ public:
     {
       float acceleration_y = msg->linear_acceleration.y;
 
-      if (acceleration_y > 3)
+      if (abs(acceleration_y) > 3)
       {
           //stopped = true;
           movement_client->cancelGoal();
-          ROS_INFO  ("BRAIN: IMU says we hit a wall.");
+          ROS_INFO  ("IMU: we hit a wall!!!!");
+          sound_msg.data = "Boom!";
+          pub_speaker.publish(sound_msg);
           if (ok_to_back)
           {
             is_backing = 1;
@@ -520,7 +619,7 @@ public:
 
     void positionCallback(const nav_msgs::Odometry::ConstPtr& msg)
     {
-      int dist = sqrt(pow(previous_location[0]-msg->pose.pose.position.x,2) + pow(previous_location[1]-msg->pose.pose.position.y,2));
+      float dist; // = sqrt(pow(previous_location[0]-msg->pose.pose.position.x,2) + pow(previous_location[1]-msg->pose.pose.position.y,2));
 
       for (int i = current_point_index+1; i < N_POINTS; i++)
       {
@@ -532,6 +631,32 @@ public:
           ROS_INFO("Passed by point %i. Removing point %i...",i+1,i+1);
         }
       }
+
+
+      dist = sqrt(pow(previous_location[0]-msg->pose.pose.position.x,2) + pow(previous_location[1]-msg->pose.pose.position.y,2));
+      ROS_INFO("Velocity: %f and Distance: %f", abs(msg->twist.twist.linear.x), dist);
+      if (abs(msg->twist.twist.linear.x) > 0.05 && dist < 0.04)
+      {
+        ROS_INFO("MOVING AGAINST A WALL!!!!!!!!!!!!!!!!!!");
+        sound_msg.data = "Looks like im stuck";
+        pub_speaker.publish(sound_msg);
+        if (msg->twist.twist.linear.x < 0)
+        {
+          // backing against a wall. Replan path as usual
+          current_action_done = 1;
+        }else
+        {
+          // moving against a wall, back off
+          if (!is_backing)
+          {
+            is_backing = 1;
+            backOff();
+          }
+        }
+      }else
+
+      previous_location[0] = msg->pose.pose.position.x;
+      previous_location[1] = msg->pose.pose.position.y;
 
       /*
       if (msg->twist.twist.linear.x < 0)

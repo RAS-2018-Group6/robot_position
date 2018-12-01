@@ -2,6 +2,7 @@
 geometry_msgs/Pose final_point
 float32 min_distance
 bool backwards
+bool use_smooth_map
 ---
 #result definition
 geometry_msgs/Pose current_point

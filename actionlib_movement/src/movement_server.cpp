@@ -26,6 +26,7 @@ private:
     ros::Publisher pub_path;
     ros::Subscriber sub_pose;
     ros::Subscriber sub_map_;
+    ros::Subscriber sub_smooth_map;
     tf::TransformListener *tf_listener;
     tf::StampedTransform base_tf;
 
@@ -38,9 +39,10 @@ private:
 
     float theta;
 
-    int nRows_, nColumns_;
-		float map_resolution_;
+    int nRows_, nColumns_,s_nRows_,s_nColumns_ ;
+		float map_resolution_,s_map_resolution_ ;
 		std::vector<signed char> data_;
+    std::vector<signed char> smooth_map;
     std::vector<float> nextgoal;
 
 
@@ -58,6 +60,7 @@ public:
         pub_path = nh_.advertise<nav_msgs::Path>("/path_publish", 10000);
         sub_pose = nh_.subscribe<nav_msgs::Odometry>("/particle_position", 1, &MovementAction::poseCallback, this);
         sub_map_ = nh_.subscribe<nav_msgs::OccupancyGrid>("/grid_map",1,&MovementAction::mapCallback,this);
+        sub_smooth_map = nh_.subscribe<nav_msgs::OccupancyGrid>("/smooth_map",1,&MovementAction::smoothmapCallback,this);
 
         tf_listener = new tf::TransformListener();
         factor_linear = 0.1; // linear velocity
@@ -95,6 +98,15 @@ public:
 				nColumns_ = msg->info.width;
 				map_resolution_ = msg->info.resolution;
 				data_ = msg-> data;
+
+		}
+
+    void smoothmapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
+		{
+				s_nRows_ = msg->info.height;
+			  s_nColumns_ = msg->info.width;
+				s_map_resolution_ = msg->info.resolution;
+				smooth_map = msg-> data;
 
 		}
 
@@ -157,8 +169,8 @@ public:
 
         return_points.push_back(feedback_.current_point.position.x);
         return_points.push_back(feedback_.current_point.position.y);
-        return_points.push_back(feedback_.current_point.position.x - 0.15* cos(heading));
-        return_points.push_back(feedback_.current_point.position.y - 0.15* sin(heading));
+        return_points.push_back(feedback_.current_point.position.x - 0.2* cos(heading));
+        return_points.push_back(feedback_.current_point.position.y - 0.2* sin(heading));
 
         return return_points;
     }
@@ -204,27 +216,38 @@ public:
         bool success = true;
         int i = 0;
         float radius = 0.08; //meters
-        PathCreator current_path (nColumns_);
+        //PathCreator current_path (nColumns_);
         std::vector<float> path_points;
         //ROS_INFO("SERVER: Backwards = %s", goal->backwards ? "true" : "false" );
         if (goal->backwards == 1)
         {
-          ROS_INFO("SERVER: Got backwards goal");
+          //ROS_INFO("SERVER: Got backwards goal");
           path_points = getStraightPath();
           factor_linear = -0.08;
           factor_angular = -0.5;
         }else
         {
-          ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
-          path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
           factor_linear = 0.1; // linear velocity
           factor_angular = 0.5; // factor for angular velocity
+          //ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
+
+          if (goal->use_smooth_map == 0)
+          {
+          PathCreator current_path (nColumns_);
+          path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
+
+          }else
+          {
+            PathCreator current_path (s_nColumns_);
+            ROS_INFO("SERVER: Using smooth map.");
+            path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, s_nRows_, s_nColumns_,s_map_resolution_,smooth_map);
+          }
         }
 
         PathRos(path_points); //Publish the path in rviz
         int nPoints = path_points.size() / 2;
         float required_dist = goal->min_distance;
-        ROS_INFO("SERVER: Required distance to goal: %f",required_dist);
+        //ROS_INFO("SERVER: Required distance to goal: %f",required_dist);
 
         //ROS_INFO("number of path points: %i",path_points.size());
         while ( i<= path_points.size() )

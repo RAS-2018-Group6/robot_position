@@ -18,7 +18,7 @@
 #define UNKNOWN -7
 #define WALL 98
 #define THICK 50
-#define ROBSIZE 0.10 //m (size of the robot that we want to thicken the walls with)
+#define ROBSIZE 0.13 //m (size of the robot that we want to thicken the walls with)
 
 /*class MapNode{
 	public:
