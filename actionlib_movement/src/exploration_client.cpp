@@ -18,6 +18,7 @@
 #include <random>
 #include <string>
 #include <cmath>
+#include <object_identification/ObjectList.h>
 
 #define EXPLORE 1
 
@@ -121,7 +122,7 @@ public:
         sub_object = n.subscribe<geometry_msgs::PointStamped>("/found_object", 1, &Brain::objectCallback,this);
         sub_map = n.subscribe<nav_msgs::OccupancyGrid>("/grid_map",1,&Brain::mapCallback,this);
 
-        sub_saved_objects = n.subscribe<nav_msgs::Odometry>("/particle_position",1,&Brain::positionCallback,this);
+        sub_saved_objects = n.subscribe<object_identification::ObjectList>("/saved_objects",1,&Brain::savedObjectsCallback,this);
         //sub_IMU = n.subscribe<sensor_msgs::Imu>("/imu/data",1,&Brain::imuCallback,this);
 
         pub_targets = n.advertise<sensor_msgs::PointCloud>("/explore_targets",1);
@@ -174,7 +175,7 @@ public:
             return;
         }else if (done_exploring)
         {
-          current_action_done = false;
+            current_action_done = false;
 
         }else if (current_object_index == N_OBJECTS)
         {
@@ -206,24 +207,24 @@ public:
             sound_msg.data = "Retrieving object";
             pub_speaker.publish(sound_msg);
             if(going_to_object){
-              moveToObject(exploration_targets.points[current_object_index].x, exploration_targets.points[current_object_index].y);
+                moveToObject(exploration_targets.points[current_object_index].x, exploration_targets.points[current_object_index].y);
             }
             else if(carrying_object){
-              goal.final_point.position.x = starting_area[0];
-              goal.final_point.position.y = starting_area[1];
-              goal.backwards = 0;
-              goal.min_distance = 0.10;
-              // add orientation
+                goal.final_point.position.x = starting_area[0];
+                goal.final_point.position.y = starting_area[1];
+                goal.backwards = 0;
+                goal.min_distance = 0.10;
+                // add orientation
 
-              //ROS_INFO("BRAIN: Waiting for server.");
-              movement_client->waitForServer();
-              // TODO wait Duration(x), otherwise restart server.
+                //ROS_INFO("BRAIN: Waiting for server.");
+                movement_client->waitForServer();
+                // TODO wait Duration(x), otherwise restart server.
 
-              //ROS_INFO("BRAIN: SERVER IS UP");
-              movement_client->sendGoal(goal, boost::bind(&Brain::returnObjectCb, this, _1, _2));
+                //ROS_INFO("BRAIN: SERVER IS UP");
+                movement_client->sendGoal(goal, boost::bind(&Brain::returnObjectCb, this, _1, _2));
             }
             else{
-              continue;
+                continue;
             }
 
         }
@@ -237,8 +238,8 @@ public:
             return;
         }else if (done_exploring)
         {
-          current_action_done = false;
-          returnToStartingArea();
+            current_action_done = false;
+            returnToStartingArea();
         }else if (current_point_index == N_POINTS)
         {
             // return to starting position
@@ -273,9 +274,9 @@ public:
         {
             if (exploration_targets.points[current_point_index].x == 0 && exploration_targets.points[current_point_index].y == 0)
             {
-              // point has already been passed by during exploration
-              current_point_index++;
-              return;
+                // point has already been passed by during exploration
+                current_point_index++;
+                return;
             }
             //ROS_INFO("explorationLoop: else case. action done = false");
             current_action_done = false;
@@ -357,31 +358,31 @@ public:
 
     void gripperDown()
     {
-    	srv.request.angle_servo_1 = 0;
+        srv.request.angle_servo_1 = 0;
 
-    	if(gripper_client.call(srv)){
-    		ROS_INFO("Gripper down");
-    	}
-    	else{
-    		ROS_INFO("Failed to lower gripper");
-    	}
+        if(gripper_client.call(srv)){
+            ROS_INFO("Gripper down");
+        }
+        else{
+            ROS_INFO("Failed to lower gripper");
+        }
     }
 
     void gripperUp()
     {
-    	srv.request.angle_servo_1 = 90;
+        srv.request.angle_servo_1 = 90;
 
-    	if(gripper_client.call(srv)){
-    		ROS_INFO("Gripper up");
-    	}
-    	else{
-    		ROS_INFO("Failed to rise gripper");
-    	}
+        if(gripper_client.call(srv)){
+            ROS_INFO("Gripper up");
+        }
+        else{
+            ROS_INFO("Failed to rise gripper");
+        }
     }
 
 
     void doneCb(const actionlib::SimpleClientGoalState& state,
-            const actionlib_movement::MovementResultConstPtr& result) {
+                const actionlib_movement::MovementResultConstPtr& result) {
 
         ROS_INFO("BRAIN: server responded with state [%s]", state.toString().c_str());
 
@@ -405,11 +406,11 @@ public:
             //No path found by server.
             N_FAILS++;
             if (goal.use_smooth_map == 1){
-              moveToTemporaryGoal();
+                moveToTemporaryGoal();
             }else{
-            goal.use_smooth_map = 1;
-            current_action_done =1;
-          }
+                goal.use_smooth_map = 1;
+                current_action_done =1;
+            }
         }else if (!is_backing)
         {
             //N_FAILS++;
@@ -419,7 +420,7 @@ public:
     }
 
     void temporaryGoalCb(const actionlib::SimpleClientGoalState& state,
-            const actionlib_movement::MovementResultConstPtr& result) {
+                         const actionlib_movement::MovementResultConstPtr& result) {
 
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
@@ -428,21 +429,21 @@ public:
             current_action_done = true;
         }else
         {
-           N_FAILS++;
-           if (goal.use_smooth_map == 1)
-           {
-             goal.use_smooth_map = 0;
-             moveToTemporaryGoal();
-           }else if (goal.use_smooth_map == 0)
-           {
-             goal.use_smooth_map == 1;
-             moveToTemporaryGoal();
-           }
+            N_FAILS++;
+            if (goal.use_smooth_map == 1)
+            {
+                goal.use_smooth_map = 0;
+                moveToTemporaryGoal();
+            }else if (goal.use_smooth_map == 0)
+            {
+                goal.use_smooth_map == 1;
+                moveToTemporaryGoal();
+            }
         }
     }
 
     void returnCb(const actionlib::SimpleClientGoalState& state,
-            const actionlib_movement::MovementResultConstPtr& result) {
+                  const actionlib_movement::MovementResultConstPtr& result) {
         goal.use_smooth_map = 0;
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
@@ -475,7 +476,7 @@ public:
     }
 
     void returnObjectCb(const actionlib::SimpleClientGoalState& state,
-            const actionlib_movement::MovementResultConstPtr& result) {
+                        const actionlib_movement::MovementResultConstPtr& result) {
 
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
@@ -513,8 +514,8 @@ public:
     }
 
     void back_doneCb(const actionlib::SimpleClientGoalState& state,
-            const actionlib_movement::MovementResultConstPtr& result)
-        {
+                     const actionlib_movement::MovementResultConstPtr& result)
+    {
 
         goal.use_smooth_map = 0;
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
@@ -535,16 +536,16 @@ public:
             */
         }else
         {
-          ROS_INFO("BRAIN: backwards failed [%s]", state.toString().c_str());
-          //ROS_INFO("back_donecb: fail. action done = true");
-          current_action_done = true;
+            ROS_INFO("BRAIN: backwards failed [%s]", state.toString().c_str());
+            //ROS_INFO("back_donecb: fail. action done = true");
+            current_action_done = true;
         }
         is_backing = false;
     }
 
 
     void catchingCb(const actionlib::SimpleClientGoalState& state,
-            const actionlib_movement::MovementResultConstPtr& result) {
+                    const actionlib_movement::MovementResultConstPtr& result) {
 
         ROS_INFO("BRAIN: server responded with state [%s]", state.toString().c_str());
 
@@ -559,7 +560,7 @@ public:
     }
 
     void doneObjectCb(const actionlib::SimpleClientGoalState& state,
-            const actionlib_movement::MovementResultConstPtr& result) {
+                      const actionlib_movement::MovementResultConstPtr& result) {
 
         ROS_INFO("BRAIN: server responded with state [%s]", state.toString().c_str());
 
@@ -580,8 +581,8 @@ public:
             //No path found by server.
             N_FAILS++;
             if (goal.use_smooth_map == 0){
-              goal.use_smooth_map = 1;
-              current_action_done =1;
+                goal.use_smooth_map = 1;
+                current_action_done =1;
             }
         }else if (!is_backing)
         {
@@ -594,18 +595,18 @@ public:
     void moveToObject(float x, float y)
     {
 
-      goal.final_point.position.x = x;
-      goal.final_point.position.y = y;
-      goal.backwards = 0;
-      goal.min_distance = 0.05;
-      // add orientation
+        goal.final_point.position.x = x;
+        goal.final_point.position.y = y;
+        goal.backwards = 0;
+        goal.min_distance = 0.05;
+        // add orientation
 
-      //ROS_INFO("BRAIN: Waiting for server.");
-      movement_client->waitForServer();
-      // TODO wait Duration(x), otherwise restart server.
+        //ROS_INFO("BRAIN: Waiting for server.");
+        movement_client->waitForServer();
+        // TODO wait Duration(x), otherwise restart server.
 
-      //ROS_INFO("BRAIN: SERVER IS UP");
-      movement_client->sendGoal(goal, boost::bind(&Brain::doneObjectCb, this, _1, _2));
+        //ROS_INFO("BRAIN: SERVER IS UP");
+        movement_client->sendGoal(goal, boost::bind(&Brain::doneObjectCb, this, _1, _2));
     }
 
     void explorePosition(float x, float y)
@@ -646,10 +647,10 @@ public:
             index = mToCell(y)*map_width+mToCell(x);
             if (index < map_width*map_height)
             {
-              if(map.data[index] == 0)
-              {
-                  point_ok = 1;
-              }
+                if(map.data[index] == 0)
+                {
+                    point_ok = 1;
+                }
             }
         }
         goal.min_distance = 0.10;
@@ -684,71 +685,71 @@ public:
 
     void objectCallback(const geometry_msgs::PointStamped::ConstPtr& msg){
         if(!catching_object){
-          if(retrieving_object){
-            going_to_object = false;
-            current_action_done = false;
-            if(average_position_counter == 0){
-              vel.linear.x = 0.0;
-              vel.angular.z = 0.0;
-              pub_vel.publish(vel);
-              movement_client->cancelGoal();
-              object_position_x = msg->point.x;
-              object_position_y = msg->point.y;
-              average_position_counter++;
-              ROS_INFO("Object found. Estimating position for retrieval")
-              }
-          else{
-              object_position_x = (object_position_x + msg->point.x)/2;
-              object_position_y = (object_position_y + msg->point.y)/2;
-              average_position_counter++;
-          }
-          ROS_INFO ("Detected object position: (%f,%f)",object_position_x,object_position_y);
-          if(average_position_counter > 10){
-              catching_object = true;
-              goal.final_point.position.x = object_position_x;
-              goal.final_point.position.y = object_position_y;
-              goal.backwards = 0;
-              goal.min_distance = 0.06;
-              movement_client->sendGoal(goal, boost::bind(&Brain::catchingCb, this, _1, _2));
+            if(retrieving_object){
+                going_to_object = false;
+                current_action_done = false;
+                if(average_position_counter == 0){
+                    vel.linear.x = 0.0;
+                    vel.angular.z = 0.0;
+                    pub_vel.publish(vel);
+                    movement_client->cancelGoal();
+                    object_position_x = msg->point.x;
+                    object_position_y = msg->point.y;
+                    average_position_counter++;
+                    ROS_INFO("Object found. Estimating position for retrieval")
+                }
+                else{
+                    object_position_x = (object_position_x + msg->point.x)/2;
+                    object_position_y = (object_position_y + msg->point.y)/2;
+                    average_position_counter++;
+                }
+                ROS_INFO ("Detected object position: (%f,%f)",object_position_x,object_position_y);
+                if(average_position_counter > 10){
+                    catching_object = true;
+                    goal.final_point.position.x = object_position_x;
+                    goal.final_point.position.y = object_position_y;
+                    goal.backwards = 0;
+                    goal.min_distance = 0.06;
+                    movement_client->sendGoal(goal, boost::bind(&Brain::catchingCb, this, _1, _2));
 
-          }
+                }
+            }
         }
-      }
 
     }
 
     void obstacleCallback(const std_msgs::Bool::ConstPtr& msg)
     {
-       if (msg -> data == true && stopped == false && retrieving_object == false)
-       {
-           stopped = true;
-           is_backing = true;
-           ROS_INFO  ("BRAIN: The goal has been cancelled. Mapping obstacle.");
-           movement_client->cancelGoal();
-           //ROS_INFO("ostaclecallback: . action done = false");
-           current_action_done = false;
-           sleep(3);
-           //current_action_done = false;
-           if (ok_to_back == 1)
-           {
-             is_backing = true;
-             backOff();
+        if (msg -> data == true && stopped == false && retrieving_object == false)
+        {
+            stopped = true;
+            is_backing = true;
+            ROS_INFO  ("BRAIN: The goal has been cancelled. Mapping obstacle.");
+            movement_client->cancelGoal();
+            //ROS_INFO("ostaclecallback: . action done = false");
+            current_action_done = false;
+            sleep(3);
+            //current_action_done = false;
+            if (ok_to_back == 1)
+            {
+                is_backing = true;
+                backOff();
 
-           }else if (!is_backing)
-           {
-             //ROS_INFO("obstaclecallback: not backing. action done = true");
-             current_action_done = true;
-           }else
-           {
-             is_backing = false;
-           }
+            }else if (!is_backing)
+            {
+                //ROS_INFO("obstaclecallback: not backing. action done = true");
+                current_action_done = true;
+            }else
+            {
+                is_backing = false;
+            }
 
 
-       }else if (msg -> data == false && stopped == true == false)
-       {
-           ROS_INFO("BRAIN: Obstacle not visible anymore.");
-           stopped = false;
-       }
+        }else if (msg -> data == false && stopped == true == false)
+        {
+            ROS_INFO("BRAIN: Obstacle not visible anymore.");
+            stopped = false;
+        }
     }
 
     void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& map_msg)
@@ -782,81 +783,81 @@ public:
 
     void positionCallback(const nav_msgs::Odometry::ConstPtr& msg)
     {
-      float dist; // = sqrt(pow(previous_location[0]-msg->pose.pose.position.x,2) + pow(previous_location[1]-msg->pose.pose.position.y,2));
-      current_position[0] = msg->pose.pose.position.x;
-      current_position[1] = msg->pose.pose.position.y;
+        float dist; // = sqrt(pow(previous_location[0]-msg->pose.pose.position.x,2) + pow(previous_location[1]-msg->pose.pose.position.y,2));
+        current_position[0] = msg->pose.pose.position.x;
+        current_position[1] = msg->pose.pose.position.y;
 
-      if (EXPLORE){
-        for (int i = current_point_index+1; i < N_POINTS; i++)
-        {
-          dist = sqrt(pow(exploration_targets.points[i].x-msg->pose.pose.position.x,2) + pow(exploration_targets.points[i].y-msg->pose.pose.position.y,2));
-          if (dist < 0.15)
-          {
-            exploration_targets.points[i].x = 0;
-            exploration_targets.points[i].y = 0;
-            ROS_INFO("Passed by point %i. Removing point %i...",i+1,i+1);
-          }
-        }
-      }
-
-
-      //ROS_INFO("Previous location: (%f, %f)", previous_location[0], previous_location[1]);
-      //ROS_INFO("Current Location: (%f, %f)", msg->pose.pose.position.x, msg->pose.pose.position.y);
-      //ROS_INFO("A:%f",std::pow(previous_location[0]-msg->pose.pose.position.x,2));
-      //ROS_INFO("B:%f",std::pow(previous_location[1]-msg->pose.pose.position.y,2));
-      //float delta_x = (previous_location[0]-msg->pose.pose.position.x) * (previous_location[0]-msg->pose.pose.position.x) *100;
-      //float delta_y = (previous_location[1]-msg->pose.pose.position.y) * (previous_location[1]-msg->pose.pose.position.y) *100;
-      //ROS_INFO("%f",delta_x);
-      //ROS_INFO("%f",delta_y);
-      //dist = delta_x + delta_y;
-      //printf("%f\n",dist);
-
-      //dist = (previous_location[0]-msg->pose.pose.position.x) * (previous_location[0]-msg->pose.pose.position.x)  + (previous_location[1]-msg->pose.pose.position.y) * (previous_location[1]-msg->pose.pose.position.y);
-      dist = sqrt(pow(previous_location[0]-msg->pose.pose.position.x,2) + pow(previous_location[1]-msg->pose.pose.position.y,2));
-      float vel = (float) msg->twist.twist.linear.x;
-      //ROS_INFO("Velocity: %f and Distance: %f", std::abs(vel), dist);
-      if (std::abs(msg->twist.twist.linear.x) > 0.05 && dist < 0.015)
-      {
-        ROS_INFO("MOVING AGAINST A WALL!!!!!!!!!!!!!!!!!!");
-        sound_msg.data = "Noooooooo. I am stuck";
-        pub_speaker.publish(sound_msg);
-
-        movement_client->cancelGoal();
-        N_FAILS++;
-
-        if (msg->twist.twist.linear.x < 0)
-        {
-          // backing against a wall. Replan path as usual
-          current_action_done = 1;
-        }else
-        {
-          // moving against a wall, back off
-          //if (!is_backing)
-          //{
-            is_backing = 1;
-            backOff();
-          //}
+        if (EXPLORE){
+            for (int i = current_point_index+1; i < N_POINTS; i++)
+            {
+                dist = sqrt(pow(exploration_targets.points[i].x-msg->pose.pose.position.x,2) + pow(exploration_targets.points[i].y-msg->pose.pose.position.y,2));
+                if (dist < 0.15)
+                {
+                    exploration_targets.points[i].x = 0;
+                    exploration_targets.points[i].y = 0;
+                    ROS_INFO("Passed by point %i. Removing point %i...",i+1,i+1);
+                }
+            }
         }
 
-      }
 
-      float dist_to_goal;
-      dist_to_goal = sqrt(pow(previous_location[0]-goal.final_point.position.x,2) + pow(previous_location[1]-goal.final_point.position.y,2));
-      if (dist_to_goal < 0.3){
-        retrieving_object = true;
-      }
-      else{
-        retrieving_object = false;
-      }
+        //ROS_INFO("Previous location: (%f, %f)", previous_location[0], previous_location[1]);
+        //ROS_INFO("Current Location: (%f, %f)", msg->pose.pose.position.x, msg->pose.pose.position.y);
+        //ROS_INFO("A:%f",std::pow(previous_location[0]-msg->pose.pose.position.x,2));
+        //ROS_INFO("B:%f",std::pow(previous_location[1]-msg->pose.pose.position.y,2));
+        //float delta_x = (previous_location[0]-msg->pose.pose.position.x) * (previous_location[0]-msg->pose.pose.position.x) *100;
+        //float delta_y = (previous_location[1]-msg->pose.pose.position.y) * (previous_location[1]-msg->pose.pose.position.y) *100;
+        //ROS_INFO("%f",delta_x);
+        //ROS_INFO("%f",delta_y);
+        //dist = delta_x + delta_y;
+        //printf("%f\n",dist);
 
-      previous_location[0] = msg->pose.pose.position.x;
-      previous_location[1] = msg->pose.pose.position.y;
+        //dist = (previous_location[0]-msg->pose.pose.position.x) * (previous_location[0]-msg->pose.pose.position.x)  + (previous_location[1]-msg->pose.pose.position.y) * (previous_location[1]-msg->pose.pose.position.y);
+        dist = sqrt(pow(previous_location[0]-msg->pose.pose.position.x,2) + pow(previous_location[1]-msg->pose.pose.position.y,2));
+        float vel = (float) msg->twist.twist.linear.x;
+        //ROS_INFO("Velocity: %f and Distance: %f", std::abs(vel), dist);
+        if (std::abs(msg->twist.twist.linear.x) > 0.05 && dist < 0.015)
+        {
+            ROS_INFO("MOVING AGAINST A WALL!!!!!!!!!!!!!!!!!!");
+            sound_msg.data = "Noooooooo. I am stuck";
+            pub_speaker.publish(sound_msg);
+
+            movement_client->cancelGoal();
+            N_FAILS++;
+
+            if (msg->twist.twist.linear.x < 0)
+            {
+                // backing against a wall. Replan path as usual
+                current_action_done = 1;
+            }else
+            {
+                // moving against a wall, back off
+                //if (!is_backing)
+                //{
+                is_backing = 1;
+                backOff();
+                //}
+            }
+
+        }
+
+        float dist_to_goal;
+        dist_to_goal = sqrt(pow(previous_location[0]-goal.final_point.position.x,2) + pow(previous_location[1]-goal.final_point.position.y,2));
+        if (dist_to_goal < 0.3){
+            retrieving_object = true;
+        }
+        else{
+            retrieving_object = false;
+        }
+
+        previous_location[0] = msg->pose.pose.position.x;
+        previous_location[1] = msg->pose.pose.position.y;
 
 
 
 
 
-      /*
+        /*
       if (msg->twist.twist.linear.x < 0)
       {
         ok_to_back = 0;
@@ -889,34 +890,51 @@ public:
 
     //Function that organizes the objects according to the distance to the robot
 
-		void organize(){
-			object_positions.points.clear();
-			std::vector<ValuableObject> foundObjects_cpy;
-			std::vector<ValuableObject>::iterator it;
-			foundObjects_cpy = foundObjects;
-			float dist_min = 1000;
-			float minx = 0, miny = 0;
-			float dist_obj = 0;
-      N_OBJECTS = foundObjects_cpy.size();
-			while(foundObjects_cpy.size()>0){
-				//it = foundObjects_cpy.begin();
-				for (int i = 0; i< foundObjects_cpy.size(); i++){
-					dist_obj = sqrt(pow((foundObjects_cpy[i].x-current_position[0]),2)+pow((foundObjects_cpy[i].y-current_position[1]),2));
-					if (dist_obj <= dist_min){ //if this is the next smallest distance, erase the one that I had seen before and put the new one.
-						dist_min = dist_obj;
-						temp_list.pop_back();
-						temp_list.push_back(foundObjects_cpy[i]);
-						it = foundObjects_cpy.begin()+i;
-						minx = foundObjects_cpy[i].x;
-						miny = foundObjects_cpy[i].y;
-					}
-				}
-				foundObjects_cpy.erase(it);
-				object_positions.points.resize(object_positions.points.size()+1); //Add one element
-				object_positions.points[object_positions.points.size()-1].x = minx;
-				object_positions.points[object_positions.points.size()-1].y = miny;
-			}
-		}
+    void savedObjectsCallback(const object_identification::ObjectList::ConstPtr& msg)
+    {
+        int x,y;
+        std::vector<ValuableObject> objects;
+        N_OBJECTS = msg->positions.size();
+        objects.resize(N_OBJECTS);
+
+        for(int i = 0; i < msg->N_OBJECTS; i++)
+        {
+            objects[i].x = msg->positions[i].point.x;
+            objects[i].y = msg->positions[i].point.y;
+        }
+        ROS_INFO("Organizing objects");
+        organize_objects(objects);
+        ROS_INFO("Objects received and organized");
+
+        delete sub_saved_object; // this only have to be done once
+    }
+
+    void organize_objects(std::vector<ValuableObject> foundObjects_cpy){
+        object_positions.points.clear();
+        std::vector<ValuableObject>::iterator it;
+        float dist_min = 1000;
+        float minx = 0, miny = 0;
+        float dist_obj = 0;
+
+        while(foundObjects_cpy.size() > 0){
+            //it = foundObjects_cpy.begin();
+            for (int i = 0; i< foundObjects_cpy.size(); i++){
+                dist_obj = sqrt(pow(foundObjects_cpy[i].x-starting_area[0],2)+pow(foundObjects_cpy[i].y-starting_area[1],2));
+                if (dist_obj <= dist_min){ //if this is the next smallest distance, erase the one that I had seen before and put the new one.
+                    dist_min = dist_obj;
+                    temp_list.pop_back();
+                    temp_list.push_back(foundObjects_cpy[i]);
+                    it = foundObjects_cpy.begin()+i;
+                    minx = foundObjects_cpy[i].x;
+                    miny = foundObjects_cpy[i].y;
+                }
+            }
+            foundObjects_cpy.erase(it);
+            object_positions.points.resize(object_positions.points.size()+1); //Add one element
+            object_positions.points[object_positions.points.size()-1].x = minx;
+            object_positions.points[object_positions.points.size()-1].y = miny;
+        }
+    }
 
 
 
@@ -925,43 +943,43 @@ public:
 
 int main (int argc, char **argv)
 {
-  ros::init(argc, argv, "exploration_client");
-  ros::NodeHandle n;
+    ros::init(argc, argv, "exploration_client");
+    ros::NodeHandle n;
 
-  Brain brain(n);
-  ROS_INFO("Starting exploration mode.");
-  //brain.moveToPosition(0.4,2.0,0.0); // Example action
+    Brain brain(n);
+    ROS_INFO("Starting exploration mode.");
+    //brain.moveToPosition(0.4,2.0,0.0); // Example action
 
 
-  sleep(1);
-  ros::spinOnce();
-  sleep(1);
+    sleep(1);
+    ros::spinOnce();
+    sleep(1);
 
-  ros::spinOnce();
+    ros::spinOnce();
 
-  if (EXPLORATION == 1){
-    brain.initExploration();
-    while(ros::ok())
-    {
-      brain.publishPoints();
-      brain.explorationLoop();
-      ros::spinOnce();
-      //ROS_INFO("Spinning");
-      sleep(1);
+    if (EXPLORATION == 1){
+        brain.initExploration();
+        while(ros::ok())
+        {
+            brain.publishPoints();
+            brain.explorationLoop();
+            ros::spinOnce();
+            //ROS_INFO("Spinning");
+            sleep(1);
+        }
     }
-  }
-  else{
-    while(ros::ok())
-    {
-      brain.objectRetrievalLoop();
-      ros::spinOnce();
-      //ROS_INFO("Spinning");
-      sleep(1);
+    else{
+        while(ros::ok())
+        {
+            brain.objectRetrievalLoop();
+            ros::spinOnce();
+            //ROS_INFO("Spinning");
+            sleep(1);
+        }
     }
-  }
 
 
 
 
-  return 0;
+    return 0;
 }
