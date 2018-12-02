@@ -33,6 +33,7 @@ private:
     ros::ServiceClient gripper_client;
     arduino_servo_control::SetServoAngles srv;
     sensor_msgs::PointCloud exploration_targets;
+    sensor_msgs::PointCloud object_positions;
     nav_msgs::OccupancyGrid map;
     std_msgs::String sound_msg;
     bool current_action_done;
@@ -44,6 +45,7 @@ private:
     int map_height;
     int map_width;
     std::vector<float> previous_location; // keep tracked of moved distance to limit backof
+    std::vector<float> current_location;	// to know what object to grab
     std::vector<float> starting_area;
     float distance_moved_forwards; // meters moved since last time we moved backwards
     bool ok_to_back;
@@ -628,6 +630,8 @@ public:
     void positionCallback(const nav_msgs::Odometry::ConstPtr& msg)
     {
       float dist; // = sqrt(pow(previous_location[0]-msg->pose.pose.position.x,2) + pow(previous_location[1]-msg->pose.pose.position.y,2));
+      current_position[0] = msg->pose.pose.position.x;
+      current_position[1] = msg->pose.pose.position.y;
 
       for (int i = current_point_index+1; i < N_POINTS; i++)
       {
@@ -717,6 +721,36 @@ public:
       }
       */
     }
+    
+    //Function that organizes the objects according to the distance to the robot
+
+		void organize(){ 
+			object_positions.points.clear();
+			std::vector<ValuableObject> foundObjects_cpy;
+			std::vector<ValuableObject>::iterator it;
+			foundObjects_cpy = foundObjects;
+			float dist_min = 1000;
+			float minx = 0, miny = 0;
+			float dist_obj = 0;
+			while(foundObjects_cpy.size()>0){
+				//it = foundObjects_cpy.begin();
+				for (int i = 0; i< foundObjects_cpy.size(); i++){ 
+					dist_obj = sqrt(pow((foundObjects_cpy[i].x-current_position[0]),2)+pow((foundObjects_cpy[i].y-current_position[1]),2));
+					if (dist_obj <= dist_min){ //if this is the next smallest distance, erase the one that I had seen before and put the new one.
+						dist_min = dist_obj;
+						temp_list.pop_back();
+						temp_list.push_back(foundObjects_cpy[i]);
+						it = foundObjects_cpy.begin()+i;
+						minx = foundObjects_cpy[i].x;
+						miny = foundObjects_cpy[i].y;
+					}
+				}
+				foundObjects_cpy.erase(it);
+				object_positions.points.resize(object_positions.points.size()+1); //Add one element
+				object_positions.points[object_positions.points.size()-1].x = minx;
+				object_positions.points[object_positions.points.size()-1].y = miny;
+			}
+		}
 
 
 
