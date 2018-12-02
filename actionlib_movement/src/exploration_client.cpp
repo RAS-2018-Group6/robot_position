@@ -58,8 +58,13 @@ private:
     double object_position_x, object_position_y;
     int average_position_counter;
     bool retrieving_object;
-    bool catching_object;
+
     geometry_msgs::Twist vel;
+    int current_object_index;
+    int N_OBJECTS;
+    bool going_to_object;
+    bool carrying_object;
+    bool catching_object;
 
 
 public:
@@ -67,6 +72,7 @@ public:
     ros::Subscriber sub_obstacle;
     ros::Subscriber sub_object;
     ros::Subscriber sub_map;
+    ros::Subscriber sub_saved_object;
     ros::Subscriber sub_IMU;
     ros::Subscriber sub_position;
     ros::Publisher pub_targets;
@@ -101,6 +107,10 @@ public:
         object_position_y = 0.0;
         retrieving_object = false;
         catching_object = false;
+        going_to_object = true;
+        carrying_object = false;
+        current_point_index = 0;
+        N_OBJECTS = 0;
 
         ok_to_back = 1;
 
@@ -110,7 +120,8 @@ public:
         sub_obstacle = n.subscribe<std_msgs::Bool>("/wall_detected", 1, &Brain::obstacleCallback,this);
         sub_object = n.subscribe<geometry_msgs::PointStamped>("/found_object", 1, &Brain::objectCallback,this);
         sub_map = n.subscribe<nav_msgs::OccupancyGrid>("/grid_map",1,&Brain::mapCallback,this);
-        sub_position = n.subscribe<nav_msgs::Odometry>("/particle_position",1,&Brain::positionCallback,this);
+
+        sub_saved_objects = n.subscribe<nav_msgs::Odometry>("/particle_position",1,&Brain::positionCallback,this);
         //sub_IMU = n.subscribe<sensor_msgs::Imu>("/imu/data",1,&Brain::imuCallback,this);
 
         pub_targets = n.advertise<sensor_msgs::PointCloud>("/explore_targets",1);
@@ -164,32 +175,23 @@ public:
         }else if (done_exploring)
         {
           current_action_done = false;
-          returnToStartingArea();
-        }else if (current_point_index == N_POINTS)
+
+        }else if (current_object_index == N_OBJECTS)
         {
             // return to starting position
             ROS_INFO("Done retrieving. Returning to starting area");
             sound_msg.data = "Woho! Done retreiving objects. Returning to starting area";
             pub_speaker.publish(sound_msg);
-
-            sleep(0.5);
-            gripperUp();
-            sleep(0.5);
-            gripperDown();
+            current_action_done = false;
             done_exploring = true;
-            std_msgs::Bool done_msg;
-            done_msg.data = 1;
-            pub_exploration_done.publish(done_msg);
         }
         else if (N_FAILS > MAX_FAILS)
         {
-            ROS_INFO("Gave up on object %i", current_point_index+1);
+            ROS_INFO("Gave up on object %i", current_object_index+1);
             sound_msg.data = "Object is impossible to retrieve! I give up.";
             pub_speaker.publish(sound_msg);
 
-            exploration_targets.points[current_point_index].x = 0;
-            exploration_targets.points[current_point_index].y = 0;
-            current_point_index++;
+            current_object_index++;
             N_FAILS = 0;
             //movement_client->cancelGoal();
             //ROS_INFO("explorationLoop: too many fails. action done = true");
@@ -197,20 +199,33 @@ public:
         }
         else
         {
-            if (exploration_targets.points[current_point_index].x == 0 && exploration_targets.points[current_point_index].y == 0)
-            {
-              // point has already been passed by during exploration
-              current_point_index++;
-              return;
-            }
             //ROS_INFO("explorationLoop: else case. action done = false");
             current_action_done = false;
-            ROS_INFO("Moving to object %i",current_point_index+1);
+            ROS_INFO("Moving to object %i",current_object_index+1);
 
             sound_msg.data = "Retrieving object";
             pub_speaker.publish(sound_msg);
+            if(going_to_object){
+              moveToObject(exploration_targets.points[current_object_index].x, exploration_targets.points[current_object_index].y);
+            }
+            else if(carrying_object){
+              goal.final_point.position.x = starting_area[0];
+              goal.final_point.position.y = starting_area[1];
+              goal.backwards = 0;
+              goal.min_distance = 0.10;
+              // add orientation
 
-            moveToObject(exploration_targets.points[current_point_index].x, exploration_targets.points[current_point_index].y);
+              //ROS_INFO("BRAIN: Waiting for server.");
+              movement_client->waitForServer();
+              // TODO wait Duration(x), otherwise restart server.
+
+              //ROS_INFO("BRAIN: SERVER IS UP");
+              movement_client->sendGoal(goal, boost::bind(&Brain::returnObjectCb, this, _1, _2));
+            }
+            else{
+              continue;
+            }
+
         }
     }
 
@@ -470,13 +485,15 @@ public:
             average_position_counter = 0;
             object_position_x = 0.0;
             object_position_y = 0.0;
-
+            backof();
             goal.use_smooth_map = 0;
-            exploration_targets.points[current_point_index].x = 0;
-            exploration_targets.points[current_point_index].y = 0;
-            ROS_INFO("Succeded with point %i", current_point_index+1);
-            current_point_index++;
+            exploration_targets.points[current_object_index].x = 0;
+            exploration_targets.points[current_object_index].y = 0;
+            ROS_INFO("Succeded with object %i", current_object_index+1);
+            current_object_index++;
             N_FAILS = 0;
+            carrying_object = false;
+            going_to_object = true;
             current_action_done = true;
 
             // braing loop ends here.
@@ -535,18 +552,9 @@ public:
         {
             gripperDown();
             retrieving_object = false;
-            goal.final_point.position.x = starting_area[0];
-            goal.final_point.position.y = starting_area[1];
-            goal.backwards = 0;
-            goal.min_distance = 0.02;
-            // add orientation
-
-            //ROS_INFO("BRAIN: Waiting for server.");
-            movement_client->waitForServer();
-            // TODO wait Duration(x), otherwise restart server.
-
-            //ROS_INFO("BRAIN: SERVER IS UP");
-            movement_client->sendGoal(goal, boost::bind(&Brain::returnObjectCb, this, _1, _2));
+            carrying_object = true;
+            going_to_object = false;
+            current_action_done = true;
         }
     }
 
@@ -558,34 +566,23 @@ public:
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
             goal.use_smooth_map = 0;
-            ROS_INFO("BRAIN: Object %i reached. Analyzing area!", current_point_index+1);
+            ROS_INFO("BRAIN: Object %i reached. Analyzing area!", current_object_index+1);
 
             retrieving_object = true;
             //Start spinning to find object
             vel.linear.x = 0;
-            vel.angular.z = M_PI/10.0;
+            vel.angular.z = 2 * M_PI/6.0;
             pub_vel.publish(vel);
-            sleep(10);
-            if(!catching_object){
-              exploration_targets.points[current_point_index].x = 0;
-              exploration_targets.points[current_point_index].y = 0;
-              ROS_INFO("Succeded with point %i", current_point_index+1);
-              current_point_index++;
-              N_FAILS = 0;
-              current_action_done = true;
-            }
-
+            //TODO: Add behaviour when spinning and no object can be found --> i.e. Object position not estimated correctly during exploration
 
         }else if (state == actionlib::SimpleClientGoalState::ABORTED)
         {
             //No path found by server.
             N_FAILS++;
-            if (goal.use_smooth_map == 1){
-              moveToTemporaryGoal();
-            }else{
-            goal.use_smooth_map = 1;
-            current_action_done =1;
-          }
+            if (goal.use_smooth_map == 0){
+              goal.use_smooth_map = 1;
+              current_action_done =1;
+            }
         }else if (!is_backing)
         {
             //N_FAILS++;
@@ -597,12 +594,10 @@ public:
     void moveToObject(float x, float y)
     {
 
-      movement_client->cancelGoal();
-
       goal.final_point.position.x = x;
       goal.final_point.position.y = y;
       goal.backwards = 0;
-      goal.min_distance = 0.20;
+      goal.min_distance = 0.05;
       // add orientation
 
       //ROS_INFO("BRAIN: Waiting for server.");
@@ -690,24 +685,25 @@ public:
     void objectCallback(const geometry_msgs::PointStamped::ConstPtr& msg){
         if(!catching_object){
           if(retrieving_object){
+            going_to_object = false;
             current_action_done = false;
-            if(average_position == 0){
+            if(average_position_counter == 0){
+              vel.linear.x = 0.0;
+              vel.angular.z = 0.0;
+              pub_vel.publish(vel);
               movement_client->cancelGoal();
               object_position_x = msg->point.x;
               object_position_y = msg->point.y;
-              average_position++;
-              vel.linear.x = 0;
-              vel.angular.z = M_PI/6.0;
-              pub_vel.publish(vel);
+              average_position_counter++;
               ROS_INFO("Object found. Estimating position for retrieval")
-                }
+              }
           else{
               object_position_x = (object_position_x + msg->point.x)/2;
               object_position_y = (object_position_y + msg->point.y)/2;
-              average_position++;
+              average_position_counter++;
           }
           ROS_INFO ("Detected object position: (%f,%f)",object_position_x,object_position_y);
-          if(average_position > 20){
+          if(average_position_counter > 10){
               catching_object = true;
               goal.final_point.position.x = object_position_x;
               goal.final_point.position.y = object_position_y;
@@ -790,16 +786,19 @@ public:
       current_position[0] = msg->pose.pose.position.x;
       current_position[1] = msg->pose.pose.position.y;
 
-      for (int i = current_point_index+1; i < N_POINTS; i++)
-      {
-        dist = sqrt(pow(exploration_targets.points[i].x-msg->pose.pose.position.x,2) + pow(exploration_targets.points[i].y-msg->pose.pose.position.y,2));
-        if (dist < 0.15)
+      if (EXPLORE){
+        for (int i = current_point_index+1; i < N_POINTS; i++)
         {
-          exploration_targets.points[i].x = 0;
-          exploration_targets.points[i].y = 0;
-          ROS_INFO("Passed by point %i. Removing point %i...",i+1,i+1);
+          dist = sqrt(pow(exploration_targets.points[i].x-msg->pose.pose.position.x,2) + pow(exploration_targets.points[i].y-msg->pose.pose.position.y,2));
+          if (dist < 0.15)
+          {
+            exploration_targets.points[i].x = 0;
+            exploration_targets.points[i].y = 0;
+            ROS_INFO("Passed by point %i. Removing point %i...",i+1,i+1);
+          }
         }
       }
+
 
       //ROS_INFO("Previous location: (%f, %f)", previous_location[0], previous_location[1]);
       //ROS_INFO("Current Location: (%f, %f)", msg->pose.pose.position.x, msg->pose.pose.position.y);
@@ -887,10 +886,10 @@ public:
       }
       */
     }
-    
+
     //Function that organizes the objects according to the distance to the robot
 
-		void organize(){ 
+		void organize(){
 			object_positions.points.clear();
 			std::vector<ValuableObject> foundObjects_cpy;
 			std::vector<ValuableObject>::iterator it;
@@ -898,9 +897,10 @@ public:
 			float dist_min = 1000;
 			float minx = 0, miny = 0;
 			float dist_obj = 0;
+      N_OBJECTS = foundObjects_cpy.size();
 			while(foundObjects_cpy.size()>0){
 				//it = foundObjects_cpy.begin();
-				for (int i = 0; i< foundObjects_cpy.size(); i++){ 
+				for (int i = 0; i< foundObjects_cpy.size(); i++){
 					dist_obj = sqrt(pow((foundObjects_cpy[i].x-current_position[0]),2)+pow((foundObjects_cpy[i].y-current_position[1]),2));
 					if (dist_obj <= dist_min){ //if this is the next smallest distance, erase the one that I had seen before and put the new one.
 						dist_min = dist_obj;
