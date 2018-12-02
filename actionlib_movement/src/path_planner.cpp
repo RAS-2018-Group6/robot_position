@@ -253,6 +253,7 @@ class PathCreator{
 				heuristic = std::abs(coords[0]-goal_coords[0]) + std::abs (coords[1]-goal_coords[1]);
 				//Variation of the algorithm,  to make it faster: multiply heuristic *VALUE
 				heuristic *= VALUE;
+				heuristic +=  map[coords[0]][coords[1]];
 			}
 			return heuristic;
 		}
