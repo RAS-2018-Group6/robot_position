@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   arduino_servo_control
   tf
   sensor_msgs
+  object_identification
 
 )
 
@@ -115,7 +116,7 @@ generate_messages(
 catkin_package(
   ##INCLUDE_DIRS include
   LIBRARIES actionlib_movement
-  CATKIN_DEPENDS nav_msgs actionlib_msgs message_generation roscpp rospy std_msgs geometry_msgs arduino_servo_control tf sensor_msgs
+  CATKIN_DEPENDS nav_msgs actionlib_msgs message_generation roscpp rospy std_msgs geometry_msgs arduino_servo_control tf sensor_msgs object_identification
 #  DEPENDS system_lib
 )
 
