@@ -17,6 +17,7 @@
 #include <sensor_msgs/Imu.h>
 #include <random>
 #include <string>
+#include <cmath>
 
 class Brain
 {
@@ -73,10 +74,12 @@ public:
         is_backing = false;
 
         N_FAILS = 0;
-        MAX_FAILS = 4;
+        MAX_FAILS = 15;
         sqrt_N_POINTS = 4;
         N_POINTS = pow(sqrt_N_POINTS,2);
         previous_location.resize(2);
+        previous_location[0] = 0.0;
+        previous_location[1] = 0.0;
         starting_area.resize(2);
         starting_area[0] = 0.23;
         starting_area[1] = 0.3;
@@ -90,7 +93,7 @@ public:
         //sub_object = n.subscribe<geometry_msgs::PointStamped>("/found_object", 1, &Brain::objectCallback,this);
         sub_map = n.subscribe<nav_msgs::OccupancyGrid>("/grid_map",1,&Brain::mapCallback,this);
         sub_position = n.subscribe<nav_msgs::Odometry>("/particle_position",1,&Brain::positionCallback,this);
-        sub_IMU = n.subscribe<sensor_msgs::Imu>("/imu/data",1,&Brain::imuCallback,this);
+        //sub_IMU = n.subscribe<sensor_msgs::Imu>("/imu/data",1,&Brain::imuCallback,this);
 
         pub_targets = n.advertise<sensor_msgs::PointCloud>("/explore_targets",1);
         pub_exploration_done = n.advertise<std_msgs::Bool>("/finished_exploring",1);
@@ -289,9 +292,10 @@ public:
             const actionlib_movement::MovementResultConstPtr& result) {
 
         ROS_INFO("BRAIN: server responded with state [%s]", state.toString().c_str());
-        goal.use_smooth_map = 0;
+
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
+            goal.use_smooth_map = 0;
             ROS_INFO("BRAIN: Point %i explored. Moving on!", current_point_index+1);
             sound_msg.data = std::string("Point %i explored. Moving on!",current_point_index+1);
             pub_speaker.publish(sound_msg);
@@ -307,8 +311,13 @@ public:
         }else if (state == actionlib::SimpleClientGoalState::ABORTED)
         {
             //No path found by server.
+            N_FAILS++;
+            if (goal.use_smooth_map == 1){
+              moveToTemporaryGoal();
+            }else{
             goal.use_smooth_map = 1;
             current_action_done =1;
+          }
         }else if (!is_backing)
         {
             //N_FAILS++;
@@ -327,6 +336,7 @@ public:
             current_action_done = true;
         }else
         {
+           N_FAILS++;
            if (goal.use_smooth_map == 1)
            {
              goal.use_smooth_map = 0;
@@ -353,7 +363,7 @@ public:
             sleep(0.5);
             gripperDown();
 
-            sound_msg.data = "Im done.";
+            sound_msg.data = "Exploration over.";
             pub_speaker.publish(sound_msg);
 
             // braing loop ends here.
@@ -381,7 +391,7 @@ public:
         {
             //current_action_done = true;
             ROS_INFO("BRAIN: Backing succeded.");
-            N_FAILS--;
+            //N_FAILS--;
             //ROS_INFO("back_donecb: succeded. action done = true");
             current_action_done = true;
 
@@ -543,7 +553,7 @@ public:
            movement_client->cancelGoal();
            //ROS_INFO("ostaclecallback: . action done = false");
            current_action_done = false;
-           sleep(5);
+           sleep(3);
            //current_action_done = false;
            if (ok_to_back == 1)
            {
@@ -604,13 +614,11 @@ public:
           //stopped = true;
           movement_client->cancelGoal();
           ROS_INFO  ("IMU: we hit a wall!!!!");
-          sound_msg.data = "Boom!";
+          sound_msg.data = "Booooom!";
           pub_speaker.publish(sound_msg);
-          if (ok_to_back)
-          {
-            is_backing = 1;
-            backOff();
-          }
+          is_backing = 1;
+          N_FAILS++;
+          backOff();
       }else
       {
           //stopped = false;
@@ -632,14 +640,30 @@ public:
         }
       }
 
+      //ROS_INFO("Previous location: (%f, %f)", previous_location[0], previous_location[1]);
+      //ROS_INFO("Current Location: (%f, %f)", msg->pose.pose.position.x, msg->pose.pose.position.y);
+      //ROS_INFO("A:%f",std::pow(previous_location[0]-msg->pose.pose.position.x,2));
+      //ROS_INFO("B:%f",std::pow(previous_location[1]-msg->pose.pose.position.y,2));
+      //float delta_x = (previous_location[0]-msg->pose.pose.position.x) * (previous_location[0]-msg->pose.pose.position.x) *100;
+      //float delta_y = (previous_location[1]-msg->pose.pose.position.y) * (previous_location[1]-msg->pose.pose.position.y) *100;
+      //ROS_INFO("%f",delta_x);
+      //ROS_INFO("%f",delta_y);
+      //dist = delta_x + delta_y;
+      //printf("%f\n",dist);
 
+      //dist = (previous_location[0]-msg->pose.pose.position.x) * (previous_location[0]-msg->pose.pose.position.x)  + (previous_location[1]-msg->pose.pose.position.y) * (previous_location[1]-msg->pose.pose.position.y);
       dist = sqrt(pow(previous_location[0]-msg->pose.pose.position.x,2) + pow(previous_location[1]-msg->pose.pose.position.y,2));
-      ROS_INFO("Velocity: %f and Distance: %f", abs(msg->twist.twist.linear.x), dist);
-      if (abs(msg->twist.twist.linear.x) > 0.05 && dist < 0.04)
+      float vel = (float) msg->twist.twist.linear.x;
+      //ROS_INFO("Velocity: %f and Distance: %f", std::abs(vel), dist);
+      if (std::abs(msg->twist.twist.linear.x) > 0.05 && dist < 0.015)
       {
         ROS_INFO("MOVING AGAINST A WALL!!!!!!!!!!!!!!!!!!");
-        sound_msg.data = "Looks like im stuck";
+        sound_msg.data = "Noooooooo. I am stuck";
         pub_speaker.publish(sound_msg);
+
+        movement_client->cancelGoal();
+        N_FAILS++;
+
         if (msg->twist.twist.linear.x < 0)
         {
           // backing against a wall. Replan path as usual
@@ -647,16 +671,21 @@ public:
         }else
         {
           // moving against a wall, back off
-          if (!is_backing)
-          {
+          //if (!is_backing)
+          //{
             is_backing = 1;
             backOff();
-          }
+          //}
         }
-      }else
+
+      }
 
       previous_location[0] = msg->pose.pose.position.x;
       previous_location[1] = msg->pose.pose.position.y;
+
+
+
+
 
       /*
       if (msg->twist.twist.linear.x < 0)

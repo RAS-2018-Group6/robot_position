@@ -227,8 +227,8 @@ public:
           factor_angular = -0.5;
         }else
         {
-          factor_linear = 0.1; // linear velocity
-          factor_angular = 0.5; // factor for angular velocity
+          factor_linear = 0.15; // linear velocity
+          factor_angular = 0.73; // factor for angular velocity
           //ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
 
           if (goal->use_smooth_map == 0)
