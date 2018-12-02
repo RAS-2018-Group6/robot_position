@@ -121,7 +121,7 @@ public:
         sub_object = n.subscribe<geometry_msgs::PointStamped>("/found_object", 1, &Brain::objectCallback,this);
         sub_map = n.subscribe<nav_msgs::OccupancyGrid>("/grid_map",1,&Brain::mapCallback,this);
 
-        sub_saved_objects = n.subscribe<nav_msgs::Odometry>("/particle_position",1,&Brain::positionCallback,this);
+        //sub_saved_objects = n.subscribe<nav_msgs::Odometry>("/particle_position",1,&Brain::positionCallback,this);
         //sub_IMU = n.subscribe<sensor_msgs::Imu>("/imu/data",1,&Brain::imuCallback,this);
 
         pub_targets = n.advertise<sensor_msgs::PointCloud>("/explore_targets",1);
@@ -221,9 +221,6 @@ public:
 
               //ROS_INFO("BRAIN: SERVER IS UP");
               movement_client->sendGoal(goal, boost::bind(&Brain::returnObjectCb, this, _1, _2));
-            }
-            else{
-              continue;
             }
 
         }
@@ -446,7 +443,7 @@ public:
         goal.use_smooth_map = 0;
         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
         {
-            ROS_INFO("Succeded to reach stating area.");
+            ROS_INFO("Succeded to reach starting area.");
             gripperUp();
             sleep(0.5);
             gripperDown();
@@ -485,7 +482,7 @@ public:
             average_position_counter = 0;
             object_position_x = 0.0;
             object_position_y = 0.0;
-            backof();
+            backOff();
             goal.use_smooth_map = 0;
             exploration_targets.points[current_object_index].x = 0;
             exploration_targets.points[current_object_index].y = 0;
@@ -695,7 +692,7 @@ public:
               object_position_x = msg->point.x;
               object_position_y = msg->point.y;
               average_position_counter++;
-              ROS_INFO("Object found. Estimating position for retrieval")
+              ROS_INFO("Object found. Estimating position for retrieval");
               }
           else{
               object_position_x = (object_position_x + msg->point.x)/2;
@@ -744,7 +741,7 @@ public:
            }
 
 
-       }else if (msg -> data == false && stopped == true == false)
+       }else if (msg -> data == false && stopped == true && retrieving_object == false)
        {
            ROS_INFO("BRAIN: Obstacle not visible anymore.");
            stopped = false;
@@ -783,8 +780,8 @@ public:
     void positionCallback(const nav_msgs::Odometry::ConstPtr& msg)
     {
       float dist; // = sqrt(pow(previous_location[0]-msg->pose.pose.position.x,2) + pow(previous_location[1]-msg->pose.pose.position.y,2));
-      current_position[0] = msg->pose.pose.position.x;
-      current_position[1] = msg->pose.pose.position.y;
+      //current_position[0] = msg->pose.pose.position.x;
+      //current_position[1] = msg->pose.pose.position.y;
 
       if (EXPLORE){
         for (int i = current_point_index+1; i < N_POINTS; i++)
@@ -901,11 +898,11 @@ public:
 			while(foundObjects_cpy.size()>0){
 				//it = foundObjects_cpy.begin();
 				for (int i = 0; i< foundObjects_cpy.size(); i++){
-					dist_obj = sqrt(pow((foundObjects_cpy[i].x-current_position[0]),2)+pow((foundObjects_cpy[i].y-current_position[1]),2));
+					//dist_obj = sqrt(pow((foundObjects_cpy[i].x-current_position[0]),2)+pow((foundObjects_cpy[i].y-current_position[1]),2));
 					if (dist_obj <= dist_min){ //if this is the next smallest distance, erase the one that I had seen before and put the new one.
 						dist_min = dist_obj;
-						temp_list.pop_back();
-						temp_list.push_back(foundObjects_cpy[i]);
+						//temp_list.pop_back();
+						//temp_list.push_back(foundObjects_cpy[i]);
 						it = foundObjects_cpy.begin()+i;
 						minx = foundObjects_cpy[i].x;
 						miny = foundObjects_cpy[i].y;
@@ -939,7 +936,7 @@ int main (int argc, char **argv)
 
   ros::spinOnce();
 
-  if (EXPLORATION == 1){
+  if (EXPLORE == 1){
     brain.initExploration();
     while(ros::ok())
     {
