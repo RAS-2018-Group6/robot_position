@@ -18,7 +18,7 @@
 #define UNKNOWN -7
 #define WALL 98
 #define THICK 50
-#define ROBSIZE 0.13 //m (size of the robot that we want to thicken the walls with)
+#define ROBSIZE 0.12 //m (size of the robot that we want to thicken the walls with)
 
 /*class MapNode{
 	public:
@@ -306,6 +306,11 @@ class PathCreator{
 			unsmoothPoints(x_goal, y_goal);
 			//ROS_INFO("Start A*");
 
+			coords[0]=x_robot;
+			coords[1]=y_robot;
+			before[0]=EMPTY;
+			before[1]=EMPTY;
+
 			g = 0;
 			h = heuristic(coords, goal_coords);
 			f = g+h;
@@ -317,10 +322,7 @@ class PathCreator{
 
 			cell now,trial;
 
-			coords[0]=x_robot;
-			coords[1]=y_robot;
-			before[0]=EMPTY;
-			before[1]=EMPTY;
+
 
 			now = new_cell (coords, f, g);
 
