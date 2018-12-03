@@ -74,6 +74,7 @@ private:
     bool carrying_object;
     bool catching_object;
     std::map<int,int> object_values;
+    ros::Timer timer;
 
 
 public:
@@ -182,13 +183,34 @@ public:
         initObjectValues();
         setNewTargetObject();
         //setNewTargetObject();
+        timer = n.createTimer(ros::Duration(190), &Brain::timerCallback,this); // 3 min + 10 sec
+      }else
+      {
+          timer = n.createTimer(ros::Duration(310), &Brain::timerCallback,this); // 5 min + 10 sec
       }
+
     }
 
     ~Brain()
     {
 
     }
+
+     void timerCallback(const ros::TimerEvent&)
+     {
+         // time is up. cancel
+         movement_client->cancelGoal();
+         done_exploring = true;
+         sound_msg.data = "Time is up";
+         pub_speaker.publish(sound_msg);
+         std_msgs::Bool done_msg;
+         done_msg.data = 1;
+         if (EXPLORE == 1)
+         {
+            pub_exploration_done.publish(done_msg);
+         }
+
+     }
 
     void backOff()
     {
