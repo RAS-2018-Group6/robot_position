@@ -19,6 +19,8 @@
 #include <string>
 #include <cmath>
 #include <object_identification/ObjectList.h>
+#include <deque>
+#include <map>
 
 #define EXPLORE 1
 
@@ -51,6 +53,9 @@ private:
     std::vector<float> previous_location; // keep tracked of moved distance to limit backof
     std::vector<float> current_location;	// to know what object to grab
     std::vector<float> starting_area;
+    std::deque<float> stuck_velocity;
+    std::deque<float> stuck_x;
+    std::deque<float> stuck_y;
     float distance_moved_forwards; // meters moved since last time we moved backwards
     bool ok_to_back;
     bool done_exploring;
@@ -68,6 +73,7 @@ private:
     bool going_to_object;
     bool carrying_object;
     bool catching_object;
+    std::map<int,int> object_values;
 
 
 public:
@@ -99,6 +105,9 @@ public:
         sqrt_N_POINTS = 4;
         N_POINTS = pow(sqrt_N_POINTS,2);
 
+        stuck_velocity.resize(2);
+        stuck_x.resize(2);
+        stuck_y.resize(2);
         previous_location.resize(2);
         previous_location[0] = 0.23;
         previous_location[1] = 0.3;
@@ -170,8 +179,9 @@ public:
         ROS_INFO("GOT THE SAVED OBJECTS");
         received_objects = true;
         N_OBJECTS = known_objects_list.positions.size();
+        initObjectValues();
         setNewTargetObject();
-        setNewTargetObject();
+        //setNewTargetObject();
       }
     }
 
@@ -826,36 +836,7 @@ public:
            stopped = false;
        }
     }
-/*
-    void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& map_msg)
-    {
-        got_map = true;
-        map = *map_msg;
-        map_width = map_msg->info.width;
-        map_height = map_msg->info.height;
-        //ROS_INFO("got map res %f",map.info.resolution);
-    }
-    */
 
-    /*void imuCallback(const sensor_msgs::Imu::ConstPtr& msg)
-    {
-      float acceleration_y = msg->linear_acceleration.y;
-
-      if (abs(acceleration_y) > 3)
-      {
-          //stopped = true;
-          movement_client->cancelGoal();
-          ROS_INFO  ("IMU: we hit a wall!!!!");
-          sound_msg.data = "Booooom!";
-          pub_speaker.publish(sound_msg);
-          is_backing = 1;
-          N_FAILS++;
-          backOff();
-      }else
-      {
-          //stopped = false;
-      }
-    }*/
 
     void positionCallback(const nav_msgs::Odometry::ConstPtr& msg)
     {
@@ -890,7 +871,27 @@ public:
           thresh = -1;
         }
 
-        if (std::abs(msg->twist.twist.linear.x) > 0.05 && dist < thresh)
+        float mean_v = stuck_velocity[0];
+        float tot_dist = 0;
+        for (int i = 1; i < stuck_x.size(); i++)
+        {
+            mean_v += stuck_velocity[i];
+            tot_dist += sqrt(pow(stuck_x[i-1]-stuck_x[i],2) + pow(stuck_y[i-1]-stuck_y[i],2));
+        }
+        mean_v = (mean_v+std::abs(msg->twist.twist.linear.x))/(stuck_velocity.size()+1);
+        tot_dist += sqrt(pow(stuck_x[stuck_x.size()-1]-msg->pose.pose.position.x,2) + pow(stuck_y[stuck_y.size()-1]-msg->pose.pose.position.y,2));
+        stuck_x.pop_front();
+        stuck_y.pop_front();
+        stuck_x.push_back(msg->pose.pose.position.x);
+        stuck_y.push_back(msg->pose.pose.position.y);
+        stuck_velocity.pop_front();
+        stuck_velocity.push_back(msg->twist.twist.linear.x);
+
+        ROS_INFO("Average velocity: %f and total Distance: %f", mean_v, tot_dist);
+
+
+        //if (std::abs(msg->twist.twist.linear.x) > 0.05 && dist < thresh)
+        if (mean_v > 0.05 && tot_dist < 0.04)
         {
             ROS_INFO("MOVING AGAINST A WALL!!!!!!!!!!!!!!!!!!");
             sound_msg.data = "Noooooooo. I am stuck";
@@ -954,23 +955,39 @@ public:
         }
     }
 */
+
     void setNewTargetObject()
     {
       ROS_INFO("SETTING NEW TARGET OBJECT");
       float min_x,min_y,min_ind,min_dist,dist;
-      min_x = 100;
-      min_y = 100;
-      min_dist = 100;
+      bool sort_by_value = 0;
+      min_x = 10;
+      min_y = 10;
+      min_dist = 10;
 
       for(int i = 0; i < N_OBJECTS; i++)
       {
-          dist = sqrt(pow(known_objects_list.positions[i].point.x-previous_location[0],2)+pow(known_objects_list.positions[i].point.y-previous_location[1],2));
-          if (dist < min_dist)
+          if (sort_by_value)
           {
-            min_x = known_objects_list.positions[i].point.x;
-            min_y = known_objects_list.positions[i].point.y;
-            min_dist = dist;
-            min_ind = i;
+              dist = object_values[known_objects_list.object_class[i]]; // value
+              if (dist > min_dist)
+              {
+                  // min dist == max value in this case
+                  min_x = known_objects_list.positions[i].point.x;
+                  min_y = known_objects_list.positions[i].point.y;
+                  min_dist = dist;
+                  min_ind = i;
+              }
+          }else
+              {
+              dist = sqrt(pow(known_objects_list.positions[i].point.x-previous_location[0],2)+pow(known_objects_list.positions[i].point.y-previous_location[1],2));
+              if (dist < min_dist)
+              {
+                min_x = known_objects_list.positions[i].point.x;
+                min_y = known_objects_list.positions[i].point.y;
+                min_dist = dist;
+                min_ind = i;
+              }
           }
       }
       //set target to closest point
@@ -980,7 +997,29 @@ public:
       // "remove" closest point from msg
       known_objects_list.positions[min_ind].point.x = 100;
       known_objects_list.positions[min_ind].point.y = 100;
+      known_objects_list.object_class[min_ind] = 9; // set to low valued class so not picked again
     }
+
+    void initObjectValues()
+    {
+
+        object_values[1] = 10000; //yellow ball
+        object_values[2] = 1000; //yellow cube
+        object_values[3] = 1000; //green cube
+        object_values[4] = 1000; //green cylinder
+        object_values[5] = 100; //green hollow cube
+        object_values[6] = 100; //orange cross
+        object_values[7] = 5000; //patric
+        object_values[8] = 1000; //red cylinder
+        object_values[9] = 100; //red hollow cube
+        object_values[10] = 10000; //red ball
+        object_values[11] = 1000; //blue cube
+        object_values[12] = 5000; //blue triangle
+        object_values[13] = 100; //purple cross
+        object_values[14] = 5000; //purple star
+    }
+
+
 
 
 
