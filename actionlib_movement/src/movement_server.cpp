@@ -163,14 +163,14 @@ public:
     }
 
 
-    std::vector<float>  getStraightPath()
+    std::vector<float>  getStraightPath(float distance)
     {
         std::vector<float> return_points;
 
         return_points.push_back(feedback_.current_point.position.x);
         return_points.push_back(feedback_.current_point.position.y);
-        return_points.push_back(feedback_.current_point.position.x - 0.2* cos(heading));
-        return_points.push_back(feedback_.current_point.position.y - 0.2* sin(heading));
+        return_points.push_back(feedback_.current_point.position.x - distance* cos(heading));
+        return_points.push_back(feedback_.current_point.position.y - distance* sin(heading));
 
         return return_points;
     }
@@ -222,12 +222,12 @@ public:
         if (goal->backwards == 1)
         {
           //ROS_INFO("SERVER: Got backwards goal");
-          path_points = getStraightPath();
+          path_points = getStraightPath(goal->back_distance);
           factor_linear = -0.08;
           factor_angular = -0.5;
         }else
         {
-          factor_linear = 0.15; // linear velocity
+          factor_linear = goal->forward_velocity; //0.15; // linear velocity
           factor_angular = 0.73; // factor for angular velocity
           //ROS_INFO("SERVER: Got goal position: [%f, %f]",goal->final_point.position.x,goal->final_point.position.y);
 

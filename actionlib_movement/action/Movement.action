@@ -2,6 +2,8 @@
 geometry_msgs/Pose final_point
 float32 min_distance
 bool backwards
+float32 back_distance
+float32 forward_velocity
 bool use_smooth_map
 ---
 #result definition
