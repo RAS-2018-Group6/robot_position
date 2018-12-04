@@ -22,7 +22,7 @@
 #include <deque>
 #include <map>
 
-#define EXPLORE 0
+#define EXPLORE 1
 
 class Brain
 {
@@ -186,7 +186,7 @@ public:
         timer = n.createTimer(ros::Duration(1000), &Brain::timerCallback,this); // 180 s = 3 min + 10 s
       }else
       {
-          timer = n.createTimer(ros::Duration(31000), &Brain::timerCallback,this); // 300 s = 5 min + 10 s
+          timer = n.createTimer(ros::Duration(310), &Brain::timerCallback,this); // 300 s = 5 min + 10 s
       }
 
     }
@@ -576,7 +576,7 @@ public:
             average_position_counter = 0;
             object_position_x = 0.0;
             object_position_y = 0.0;
-            goal.back_distance = 0.5;
+            goal.back_distance = 0.4;
             goal.use_smooth_map = 0;
             ROS_INFO("Succeded with object %i", current_object_index+1);
             current_object_index++;
