@@ -22,7 +22,7 @@
 #include <deque>
 #include <map>
 
-#define EXPLORE 0
+#define EXPLORE 1
 
 class Brain
 {
@@ -103,7 +103,7 @@ public:
 
         N_FAILS = 0;
         MAX_FAILS = 15;
-        sqrt_N_POINTS = 1;
+        sqrt_N_POINTS = 3; //3;
         N_POINTS = pow(sqrt_N_POINTS,2);
 
         stuck_velocity.resize(4);
@@ -186,7 +186,7 @@ public:
         timer = n.createTimer(ros::Duration(1000), &Brain::timerCallback,this); // 180 s = 3 min + 10 s
       }else
       {
-          timer = n.createTimer(ros::Duration(31000), &Brain::timerCallback,this); // 300 s = 5 min + 10 s
+          timer = n.createTimer(ros::Duration(310), &Brain::timerCallback,this); // 300 s = 5 min + 10 s
       }
 
     }
@@ -395,15 +395,15 @@ public:
 
         float height = map.info.height;
         float width = map.info.width;
-        int k = 0;
+        int k = N_POINTS-1;
         for (int j = 1; j <= sqrt_N_POINTS; j++)
         {
             for (int i = 1; i <= sqrt_N_POINTS; i++)
             {
-                exploration_targets.points[k].x = i*map.info.resolution*height/(sqrt_N_POINTS+1) + (float) dis(gen);
-                exploration_targets.points[k].y = j*map.info.resolution*width/(sqrt_N_POINTS+1) + (float) dis(gen);
+                exploration_targets.points[k].x = i*map.info.resolution*width/(sqrt_N_POINTS+1) + (float) dis(gen);
+                exploration_targets.points[k].y = j*map.info.resolution*height/(sqrt_N_POINTS+1) + (float) dis(gen);
                 //ROS_INFO("Point: (%f,%f)",exploration_targets.points[k].x,exploration_targets.points[k].y);
-                k++;
+                k--;
             }
         }
         ROS_INFO("Evaluating points");

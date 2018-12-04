@@ -333,9 +333,9 @@ class PathCreator{
 
 
 		std::vector<cell> astar(int x_robot, int y_robot, int x_goal, int y_goal){
-
-			int lengthx = nRows;
-			int lengthy = nColumns; //Number of cells in each direction that the map has
+			//HERE!!
+			int lengthy = nRows;
+			int lengthx = nColumns; //Number of cells in each direction that the map has
 			int goal_coords[2]={x_goal,y_goal},coords[2],before[2],cost=0;
 			double g, f, h;
 
@@ -564,6 +564,7 @@ int iter = 0;
 
 			nRows = rows;
 			nColumns = columns;
+			ROS_INFO("ROWS: %i, COLUMNS: %i", nRows, nColumns);
 			map_resolution = resolution;
 			data = map_data;
 
