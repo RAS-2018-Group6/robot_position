@@ -22,7 +22,7 @@
 #include <deque>
 #include <map>
 
-#define EXPLORE 1
+#define EXPLORE 0
 
 class Brain
 {
@@ -103,12 +103,12 @@ public:
 
         N_FAILS = 0;
         MAX_FAILS = 15;
-        sqrt_N_POINTS = 4;
+        sqrt_N_POINTS = 1;
         N_POINTS = pow(sqrt_N_POINTS,2);
 
-        stuck_velocity.resize(2);
-        stuck_x.resize(2);
-        stuck_y.resize(2);
+        stuck_velocity.resize(4);
+        stuck_x.resize(4);
+        stuck_y.resize(4);
         previous_location.resize(2);
         previous_location[0] = 0.23;
         previous_location[1] = 0.3;
@@ -126,7 +126,7 @@ public:
         N_OBJECTS = 0;
 
         goal.back_distance = 0.2;
-        goal.forward_velocity = 0.12;
+        goal.forward_velocity = 0.15;
 
         ok_to_back = 1;
 
@@ -183,10 +183,10 @@ public:
         initObjectValues();
         setNewTargetObject();
         //setNewTargetObject();
-        timer = n.createTimer(ros::Duration(190), &Brain::timerCallback,this); // 3 min + 10 sec
+        timer = n.createTimer(ros::Duration(1000), &Brain::timerCallback,this); // 180 s = 3 min + 10 s
       }else
       {
-          timer = n.createTimer(ros::Duration(310), &Brain::timerCallback,this); // 5 min + 10 sec
+          timer = n.createTimer(ros::Duration(31000), &Brain::timerCallback,this); // 300 s = 5 min + 10 s
       }
 
     }
@@ -199,16 +199,19 @@ public:
      void timerCallback(const ros::TimerEvent&)
      {
          // time is up. cancel
-         movement_client->cancelGoal();
-         done_exploring = true;
-         sound_msg.data = "Time is up";
-         pub_speaker.publish(sound_msg);
-         std_msgs::Bool done_msg;
-         done_msg.data = 1;
-         if (EXPLORE == 1)
+         if (!done_exploring)
          {
-            pub_exploration_done.publish(done_msg);
-         }
+           movement_client->cancelGoal();
+           done_exploring = true;
+           sound_msg.data = "Time is up";
+           pub_speaker.publish(sound_msg);
+           std_msgs::Bool done_msg;
+           done_msg.data = 1;
+           if (EXPLORE == 1)
+           {
+              pub_exploration_done.publish(done_msg);
+           }
+       }
 
      }
 
@@ -217,6 +220,12 @@ public:
         sound_msg.data = "Oops! Backing";
         pub_speaker.publish(sound_msg);
         N_FAILS++;
+
+        if (catching_object == true && retrieving_object == false)
+        {
+          going_to_object = true;
+        }
+        catching_object = false;
         ROS_INFO("BRAIN: Backing");
         //goal.final_point.position.x = 1;
         //goal.final_point.position.y = 1;
@@ -253,16 +262,18 @@ public:
             current_action_done = false;
             done_exploring = true;
         }
-        else if (N_FAILS > MAX_FAILS*10)
+        else if (N_FAILS > MAX_FAILS)
         {
-            ROS_INFO("Gave up on object %i", current_object_index+1);
-            sound_msg.data = "Object is impossible to retrieve! I give up.";
-            pub_speaker.publish(sound_msg);
+
+
             if(carrying_object == true){
               N_FAILS = 0;
               current_action_done = true;
             }
             else{
+              ROS_INFO("Gave up on object %i", current_object_index+1);
+              sound_msg.data = "Object is impossible to retrieve! I give up.";
+              pub_speaker.publish(sound_msg);
               current_object_index++;
               setNewTargetObject();
               N_FAILS = 0;
@@ -288,13 +299,14 @@ public:
                 catching_object = false;
                 sound_msg.data = "Retrieving object";
                 pub_speaker.publish(sound_msg);
+                gripperUp();
                 moveToObject(exploration_targets.points[0].x, exploration_targets.points[0].y);
             }
             else if(carrying_object){
                 goal.final_point.position.x = starting_area[0];
                 goal.final_point.position.y = starting_area[1];
                 goal.backwards = 0;
-                goal.min_distance = 0.10;
+                goal.min_distance = 0.15;
                 // add orientation
 
                 //ROS_INFO("BRAIN: Waiting for server.");
@@ -564,7 +576,7 @@ public:
             average_position_counter = 0;
             object_position_x = 0.0;
             object_position_y = 0.0;
-            goal.back_distance = 1.0;
+            goal.back_distance = 0.5;
             goal.use_smooth_map = 0;
             ROS_INFO("Succeded with object %i", current_object_index+1);
             current_object_index++;
@@ -641,10 +653,10 @@ public:
         {
             gripperDown();
             goal.use_smooth_map = 0;
-            goal.forward_velocity = 0.15;
             retrieving_object = false;
             carrying_object = true;
             going_to_object = false;
+            goal.forward_velocity = 0.15;
             current_action_done = true;
         }else
         {
@@ -883,7 +895,7 @@ public:
         //dist = (previous_location[0]-msg->pose.pose.position.x) * (previous_location[0]-msg->pose.pose.position.x)  + (previous_location[1]-msg->pose.pose.position.y) * (previous_location[1]-msg->pose.pose.position.y);
         dist = sqrt(pow(previous_location[0]-msg->pose.pose.position.x,2) + pow(previous_location[1]-msg->pose.pose.position.y,2));
         float vel = (float) msg->twist.twist.linear.x;
-        ROS_INFO("Velocity: %f and Distance: %f", std::abs(vel), dist);
+        //ROS_INFO("Velocity: %f and Distance: %f", std::abs(vel), dist);
         float thresh;
         if (EXPLORE == 1)
         {
@@ -909,22 +921,24 @@ public:
         stuck_velocity.pop_front();
         stuck_velocity.push_back(msg->twist.twist.linear.x);
 
-        ROS_INFO("Average velocity: %f and total Distance: %f", mean_v, tot_dist);
+        //ROS_INFO("Average velocity: %f and total Distance: %f", mean_v, tot_dist);
 
 
         //if (std::abs(msg->twist.twist.linear.x) > 0.05 && dist < thresh)
-        if (mean_v > 0.05 && tot_dist < 0.04)
+        // exploration v 0.05, dist 0.04
+        if (std::abs(mean_v) > 0.04 && tot_dist < 0.015)
         {
             ROS_INFO("MOVING AGAINST A WALL!!!!!!!!!!!!!!!!!!");
             sound_msg.data = "Noooooooo. I am stuck";
             pub_speaker.publish(sound_msg);
 
             movement_client->cancelGoal();
-            N_FAILS++;
+
 
             if (msg->twist.twist.linear.x < 0)
             {
                 // backing against a wall. Replan path as usual
+                N_FAILS++;
                 current_action_done = 1;
             }else
             {
@@ -1012,6 +1026,7 @@ public:
               }
           }
       }
+      ROS_INFO("Picked object %i", known_objects_list.id[min_ind]);
       //set target to closest point
       exploration_targets.points[0].x = min_x;
       exploration_targets.points[0].y = min_y;
@@ -1020,25 +1035,27 @@ public:
       known_objects_list.positions[min_ind].point.x = 100;
       known_objects_list.positions[min_ind].point.y = 100;
       known_objects_list.object_class[min_ind] = 9; // set to low valued class so not picked again
+
     }
 
     void initObjectValues()
     {
 
-        object_values[1] = 10000; //yellow ball
-        object_values[2] = 1000; //yellow cube
-        object_values[3] = 1000; //green cube
-        object_values[4] = 1000; //green cylinder
-        object_values[5] = 100; //green hollow cube
-        object_values[6] = 100; //orange cross
-        object_values[7] = 5000; //patric
-        object_values[8] = 1000; //red cylinder
-        object_values[9] = 100; //red hollow cube
-        object_values[10] = 10000; //red ball
-        object_values[11] = 1000; //blue cube
-        object_values[12] = 5000; //blue triangle
-        object_values[13] = 100; //purple cross
-        object_values[14] = 5000; //purple star
+        object_values[0] = 10000; //yellow ball
+        object_values[1] = 1000; //yellow cube
+        object_values[2] = 1000; //green cube
+        object_values[3] = 1000; //green cylinder
+        object_values[4] = 100; //green hollow cube
+        object_values[5] = 100; //orange cross
+        object_values[6] = 5000; //patric
+        object_values[7] = 1000; //red cylinder
+        object_values[8] = 100; //red hollow cube
+        object_values[9] = 10000; //red ball
+        object_values[10] = 1000; //blue cube
+        object_values[11] = 5000; //blue triangle
+        object_values[12] = 100; //purple cross
+        object_values[13] = 5000; //purple star
+        object_values[14] = 0; //purple star
     }
 
 
@@ -1102,7 +1119,7 @@ int main (int argc, char **argv)
       brain.explorationLoop();
       ros::spinOnce();
       //ROS_INFO("Spinning");
-      sleep(1);
+      sleep(0.5);
     }
   }
     else{

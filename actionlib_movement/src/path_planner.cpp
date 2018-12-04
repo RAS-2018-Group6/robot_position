@@ -19,6 +19,7 @@
 #define WALL 98
 #define THICK 50
 #define ROBSIZE 0.12 //m (size of the robot that we want to thicken the walls with)
+#define EXPAND 0.02 //m (size of the step we wan to decrease the weight of the cells)
 
 /*class MapNode{
 	public:
@@ -40,6 +41,7 @@ class PathCreator{
 		std::vector<signed char> data;
 		std::vector<std::vector<signed char> > map;
 		int ROBSIZE_Cell;
+		int EXPAND_Cell;
 
 
 
@@ -141,6 +143,45 @@ class PathCreator{
 					//ROS_INFO("Out of if, i = %i,  j= %i ", i, j);
 				}
 			}
+			//ROS_INFO("Finished wall thickening");
+		}
+
+		void smoothMap2(){
+			for (int i = 0; i < nColumns; i++){
+				for (int j = 0; j<nRows; j++){
+					//ROS_INFO("nEXT");
+					if (map[i][j]>WALL){
+						//Make the wall thicker (put a value <WALL and >FREE) in a squared area of size 2*ROBSIZE
+						for (int m = -ROBSIZE_Cell; m <= ROBSIZE_Cell; m++){
+							for (int n = -ROBSIZE_Cell; n <= ROBSIZE_Cell; n++){
+								if (i>=(-m) && (i+m)<(nColumns) && j>=(-n) && (j+n)<(nRows) && map[i+m][j+n]<WALL){
+									map[i+m][j+n]=THICK;
+								}
+							}
+						}
+					}
+					//ROS_INFO("Out of if, i = %i,  j= %i ", i, j);
+				}
+			}
+			for (int k = 0; k<= THICK; k *= 5){
+				for (int i = 0; i < nColumns; i++){
+					for (int j = 0; j<nRows; j++){
+						//ROS_INFO("nEXT");
+						if (map[i][j]>THICK-k){
+							//Make the wall thicker (put a value <WALL and >FREE) in a squared area of size 2*ROBSIZE
+							for (int m = -EXPAND_Cell; m <= EXPAND_Cell; m++){
+								for (int n = -EXPAND_Cell; n <= EXPAND_Cell; n++){
+									if (i>=(-m) && (i+m)<(nColumns) && j>=(-n) && (j+n)<(nRows) && map[i+m][j+n]<THICK-k){
+										map[i+m][j+n]=THICK-k;
+									}
+								}
+							}
+						}
+						//ROS_INFO("Out of if, i = %i,  j= %i ", i, j);
+					}
+				}
+			}
+
 			//ROS_INFO("Finished wall thickening");
 		}
 
@@ -253,7 +294,7 @@ class PathCreator{
 				heuristic = std::abs(coords[0]-goal_coords[0]) + std::abs (coords[1]-goal_coords[1]);
 				//Variation of the algorithm,  to make it faster: multiply heuristic *VALUE
 				heuristic *= VALUE;
-				heuristic +=  map[coords[0]][coords[1]];
+				//heuristic +=  map[coords[0]][coords[1]];
 			}
 			return heuristic;
 		}
@@ -269,7 +310,8 @@ class PathCreator{
 				if (coords[1]-coords_before[1] != 0) return 1 //The direction of the movement is the same
 				else return HIGH_COST; //Cost of rotation
 			}*/
-			return 1;
+			double g = (double)(1 + map[coords[0]][coords[1]]);
+			return g;
 		}
 
 		std::vector<cell> build_path(cell goal, set_of_cells * close){
@@ -301,6 +343,7 @@ class PathCreator{
 			std::vector<cell> not_valid;
 			mapMatrix();
 			ROBSIZE_Cell = mToCell (ROBSIZE);
+			EXPAND_Cell = mToCell(EXPAND);
 			smoothMap();
 			unsmoothPoints(x_robot, y_robot);
 			unsmoothPoints(x_goal, y_goal);
