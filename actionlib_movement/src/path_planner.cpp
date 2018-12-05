@@ -1,19 +1,14 @@
 #include <stdio.h>
 #include <ros/ros.h>
-//#include <std_msgs/UInt32>
-//#include <std_msgs/Float32>
 #include <cmath>
 #include <nav_msgs/OccupancyGrid.h>
 #include <vector>
 #include "class_cell.hpp"
 #include <iostream>
 #include <fstream>
-//#include "/home/ras16/catkin_ws/src/robot_map/src/map_node.cpp"
-
 
 #define EMPTY -1
 #define VALUE 1
-//#define HIGH_COST 10
 #define FREE 30 //Asume there is nothing if the value is less than FREE
 #define UNKNOWN -7
 #define WALL 98
@@ -21,25 +16,16 @@
 #define ROBSIZE 0.12 //m (size of the robot that we want to thicken the walls with)
 #define EXPAND 0.02 //m (size of the step we wan to decrease the weight of the cells)
 
-/*class MapNode{
-	public:
-		int nRows = 20;
-		int nColumns = 20;
-		int map_resolution = 20;
-
-		int mToCell(double x){return round(x/map_resolution);}
-		std::vector<std::vector<int> > coords;
-
-};*/
 
 class PathCreator{
 
 	private:
-		//MapNode map;
+		//Map data necessary for the path planner
 		int nRows, nColumns;
 		float map_resolution;
 		std::vector<signed char> data;
 		std::vector<std::vector<signed char> > map;
+		//Other parameters
 		int ROBSIZE_Cell;
 		int EXPAND_Cell;
 
@@ -63,7 +49,7 @@ class PathCreator{
 
 		}
 
-		//Print map to disk
+		//Print map and path to disk
 		void printMap(std::vector<cell> path){
 			char output [nColumns][nRows];
 			for(int i=0;i<nColumns;i++){
@@ -106,19 +92,18 @@ class PathCreator{
 			myfile_2.close();
 		}
 
-//This function is already in Kristian's code
-		int mToCell(float x)
+		int mToCell(float x) //Converts a float into a number of cells (depending on the map resolution)
     {
         return (int) round(x/map_resolution);
     }
 
-		void mapMatrix(){ //Converts the data into a matrix
-			//ROS_INFO("Transform to Map array");
+		void mapMatrix(){ //Converts the gridmap data into a matrix
+			
 			for (int i =0; i<nColumns; i++){
-				//ROS_INFO("%i",i);
+				
 				map[i].resize(nRows, UNKNOWN); //Give the vectors of the matrix a length
 			}
-			//ROS_INFO("TEst");
+			
 			for(int i = 0; i<nColumns; i++){
 				for (int j = 0; j < nRows; j++){
 					map[i][j]=data[j*nColumns+i];
@@ -126,10 +111,10 @@ class PathCreator{
 			}
 		}
 
-		void smoothMap(){
+		void smoothMap(){ //Thickens the walls that were on the gridmap
 			for (int i = 0; i < nColumns; i++){
 				for (int j = 0; j<nRows; j++){
-					//ROS_INFO("nEXT");
+					
 					if (map[i][j]>WALL){
 						//Make the wall thicker (put a value <WALL and >FREE) in a squared area of size 2*ROBSIZE
 						for (int m = -ROBSIZE_Cell; m <= ROBSIZE_Cell; m++){
@@ -140,16 +125,14 @@ class PathCreator{
 							}
 						}
 					}
-					//ROS_INFO("Out of if, i = %i,  j= %i ", i, j);
 				}
 			}
-			//ROS_INFO("Finished wall thickening");
 		}
 
-		void smoothMap2(){
+		void smoothMap2(){ //Function not used. Created to put different values into the cells depending on the distance to the obstacle (so that the path goes far from walls)
 			for (int i = 0; i < nColumns; i++){
 				for (int j = 0; j<nRows; j++){
-					//ROS_INFO("nEXT");
+					
 					if (map[i][j]>WALL){
 						//Make the wall thicker (put a value <WALL and >FREE) in a squared area of size 2*ROBSIZE
 						for (int m = -ROBSIZE_Cell; m <= ROBSIZE_Cell; m++){
@@ -160,7 +143,6 @@ class PathCreator{
 							}
 						}
 					}
-					//ROS_INFO("Out of if, i = %i,  j= %i ", i, j);
 				}
 			}
 			for (int k = 0; k<= THICK; k *= 5){
@@ -177,15 +159,12 @@ class PathCreator{
 								}
 							}
 						}
-						//ROS_INFO("Out of if, i = %i,  j= %i ", i, j);
 					}
 				}
 			}
-
-			//ROS_INFO("Finished wall thickening");
 		}
 
-		void unsmoothPoints(int x, int y){
+		void unsmoothPoints(int x, int y){ //Clears the area around the given position so that the point is not inside forbidden area
 			for (int m = -(ROBSIZE_Cell-1); m <= (ROBSIZE_Cell-1); m++){
 				for (int n = -(ROBSIZE_Cell-1); n <= (ROBSIZE_Cell-1); n++){
 					if (x>=(-m) && (x+m)<(nColumns) && y>=(-n) && (y+n)<(nRows) && map[x+m][y+n]<WALL){
@@ -193,11 +172,9 @@ class PathCreator{
 					}
 				}
 			}
-
-		//ROS_INFO("Finished clearing %i, %i", x, y);
 		}
 
-		bool free_line(int x0, int y0, int x1, int y1){
+		bool free_line(int x0, int y0, int x1, int y1){ //Check if a line is completely out of forbidden area
 			bool free = true; //The line doesn't cross walls when free is true
 			float x_m0, y_m0, x_m1, y_m1;
 			std::vector<float> line (0);
@@ -213,7 +190,7 @@ class PathCreator{
 
 			float x = x_m0;
       float y = y_m0;
-			//ROS_INFO("is line from cell %i, %i to cell %i, %i free?:", x0, y0, x1, y1);
+
 
 			while(current_dist <= dist){
 				line.push_back(x);
@@ -227,17 +204,13 @@ class PathCreator{
 				x_check = mToCell(line[i]);
 				y_check = mToCell(line[i+1]);
 				if (map[x_check][y_check] > FREE){ //The cell is occupied
-	//				ROS_INFO("The cell is occupied");
 					return false; //If there is a point in the line occupied by a wall, then the path is not free
 				}
-				//ROS_INFO("The cell is free");
 			}
-			//ROS_INFO("Free line");
-
 			return true;
 		}
 
-		std::vector<cell> smoothPath(std::vector<cell> path){
+		std::vector<cell> smoothPath(std::vector<cell> path){ //Function that erases waypoints while the line that connects them is free of collision
 			std::vector<cell> smooth_path;
 			std::vector<cell>::iterator c = path.begin()+2;
 			int iterations = 2;
@@ -247,23 +220,12 @@ class PathCreator{
 				for (int j = 1; j < path.size()-1; j++){
 					while (free_line(smooth_path[smooth_path.size()-2].coords[0],smooth_path[smooth_path.size()-2].coords[1],path[iterations].coords[0],path[iterations].coords[1]) && path.size()>0){
 						//As long as the line between the two points is free
-					//	ROS_INFO("1. iterations = %i, path size = %i", iterations, path.size());
-
 						smooth_path.pop_back();
-				//		ROS_INFO("2. iterations = %i, path size = %i", iterations, path.size());
-
 						smooth_path.push_back(path[iterations]);
-			//			ROS_INFO("3. iterations = %i, path size = %i", iterations, path.size());
-
 						if (c<= path.end()){
-						//	ROS_INFO("4.1 iterations = %i, path size = %i", iterations, path.size());
-
 							path.erase(c);
-							//ROS_INFO("4. iterations = %i, path size = %i", iterations, path.size());
 						}
-						//else ROS_INFO("4. Not erased");
 						if (c== path.end()){
-							//ROS_INFO("4. FINISHED PATH iterations = %i, path size = %i", iterations, path.size());
 							break;
 						}
 
@@ -273,81 +235,58 @@ class PathCreator{
 
 						path.erase(c);
 						c++;
-
-			//			ROS_INFO("Continue", iterations, path.size());
 					}
 					iterations++;
-				//	ROS_INFO("New Point Added to smooth path");
 				}
 				smooth_path.push_back(path[iterations-1]);
 			}
-			//ROS_INFO("Number of points of the smooth path: %i", smooth_path.size());
-
-			//ROS_INFO("The path has been smoothed");
-
 			return smooth_path;
 		}
 
-		double heuristic(int coords[2], int goal_coords[2]){
+		double heuristic(int coords[2], int goal_coords[2]){ //Function that computes the heuristic for each cell
 			double heuristic = 0.0;
 			if (goal_coords[0] != EMPTY && goal_coords[1] != EMPTY){
 				heuristic = std::abs(coords[0]-goal_coords[0]) + std::abs (coords[1]-goal_coords[1]);
 				//Variation of the algorithm,  to make it faster: multiply heuristic *VALUE
-				heuristic *= VALUE;
-				//heuristic +=  map[coords[0]][coords[1]];
+				heuristic *= VALUE; //VALUE has been set to 1 in order to get the shortest path
 			}
 			return heuristic;
 		}
 
-		//Maybe the g cost can always be 1, not taking into consideration possible rotations cause a higher cost
-
 		double g_cost(int coords[2], int coords_before[2], int parents_coords[2]){
-			/*if (coords_before [0] - parents_coords[0] != 0){ //movement along x axis
-				if (coords[0]-coords_before[0] != 0) return 1 //The direction of the movement is the same
-				else return HIGH_COST; //Cost of rotation
-			}
-			else{ //movement along y axis
-				if (coords[1]-coords_before[1] != 0) return 1 //The direction of the movement is the same
-				else return HIGH_COST; //Cost of rotation
-			}*/
-			double g = (double)(1 + map[coords[0]][coords[1]]);
+			double g = (double)(1 + map[coords[0]][coords[1]]); //The g cost also depends on the value of the cell. Just useful when using smoothMap2 function...
 			return g;
 		}
 
-		std::vector<cell> build_path(cell goal, set_of_cells * close){
+		std::vector<cell> build_path(cell goal, set_of_cells * close){ //When the path planner has finished, this function creates the path that will be sent to the path follower
 
 			cell now=goal;
 			std::vector<cell> path_vector(1,goal);
 
 			while(now.parent_coords[0]!=EMPTY && now.parent_coords[1] != EMPTY){//While the cell we are looking at had been obtained from another one
 			//(was not the first one)
-
 				now=(*close).pop(now.parent_coords); //Save in "now" the cell that was the parent of the one I was in
-
 				path_vector.push_back(now);
-
 			}
-									//ROS_INFO("End of build path");
 				return path_vector;
 		}
 
+		//***********************************
+		//ASTAR ALGORITHM
+		//***********************************
 
 		std::vector<cell> astar(int x_robot, int y_robot, int x_goal, int y_goal){
-			//HERE!!
 			int lengthy = nRows;
 			int lengthx = nColumns; //Number of cells in each direction that the map has
 			int goal_coords[2]={x_goal,y_goal},coords[2],before[2],cost=0;
 			double g, f, h;
-
-
-			std::vector<cell> not_valid;
+			std::vector<cell> not_valid; //Just useful when there is no path
 			mapMatrix();
 			ROBSIZE_Cell = mToCell (ROBSIZE);
 			EXPAND_Cell = mToCell(EXPAND);
 			smoothMap();
-			unsmoothPoints(x_robot, y_robot);
-			unsmoothPoints(x_goal, y_goal);
-			//ROS_INFO("Start A*");
+			unsmoothPoints(x_robot, y_robot); //Clear area of starting point
+			unsmoothPoints(x_goal, y_goal); //Clear area of goal position
 
 			coords[0]=x_robot;
 			coords[1]=y_robot;
@@ -357,15 +296,8 @@ class PathCreator{
 			g = 0;
 			h = heuristic(coords, goal_coords);
 			f = g+h;
-
-
-
-
-
-
+ç
 			cell now,trial;
-
-
 
 			now = new_cell (coords, f, g);
 
@@ -373,12 +305,6 @@ class PathCreator{
 
 			set_of_cells close; //In the beginning it must be empty
 			set_of_cells open(now); //The first element must be the first cell to check (the one in which the robot is)
-			set_of_cells before_list; //The list of cells that can still be checked
-
-
-
-			//ROS_INFO("now coord = %i, %i", now.coords[0], now.coords[1]);
-
 			not_valid.push_back(now); //Put in the not valid vector the values of the current position
 
 			//First, we check that the goal coordinates are within the limits of the map:
@@ -394,17 +320,13 @@ class PathCreator{
 int iter = 0;
 
 			while(!open.empty()) {//While there are still cells to check in the map
-				//ROS_INFO("iteration %i", iter);
+				
 				iter++;
-			//	ROS_INFO("open: x = %i y =  %i", open.cell_array[0].coords[0],open.cell_array[0].coords[1] );
+			
 				now=open.best_cell(); //save in now the cell with the lowest cost function (f) of the open list
-//ROS_INFO("Open has something: %i",!open.empty());
 
 				if(now.coords[0]==goal_coords[0] && now.coords[1]==goal_coords[1]){ //If I already have the solution for the path:
-					//ROS_INFO("Path is built. goal is %i, %i", goal_coords[0],goal_coords[1]);
 					return build_path(now, &close); //Return the path (calling the function build_path)
-
-
 				}
 
 				//If I haven't found the path yet, try the cells next to the cell now:
@@ -413,10 +335,9 @@ int iter = 0;
 				if(now.coords[1]-1>=0){ //If I'm not in the limit 0 of y:
 					coords[0]=now.coords[0]; //try new coordinates
 					coords[1]=now.coords[1]-1;
-					//ROS_INFO("3 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
-
+					
 					if(map[coords[0]][coords[1]] <= FREE){ //If that cell is free of obstacles
-						//ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
+						
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
 						f = g + h; // compute total cost
@@ -442,14 +363,10 @@ int iter = 0;
 						}
 					}
 				}
-				//ROS_INFO("aFTER IF NUMBER 3");
 				if(now.coords[1]+1<lengthy){ //If I'm not in the limit length of y:
 					coords[0]=now.coords[0]; //try new coordinates
 					coords[1]=now.coords[1]+1;
-					//ROS_INFO("4 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
-
 					if(map[coords[0]][coords[1]]  <= FREE){ //If that cell is free of obstacles
-					//	ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
 						f = g + h; // compute total cost
@@ -475,17 +392,11 @@ int iter = 0;
 						}
 					}
 				}
-
-			//	ROS_INFO("now coord = %i, %i", now.coords[0], now.coords[1]);
-
 				if(now.coords[0]-1>=0){ //If I'm not in the limit 0 of x:
 					coords[0]=now.coords[0]-1; //try new coordinates
 					coords[1]=now.coords[1];
-			//	ROS_INFO("1 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
-
-
 					if(map[coords[0]][coords[1]] <= FREE){//If that cell is free of obstacles
-					//	ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
+					
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
 						f = g + h; // compute total cost
@@ -511,18 +422,13 @@ int iter = 0;
 						}
 					}
 				}
-			//	ROS_INFO("aFTER IF NUMBER 1");
-			//	ROS_INFO("NOW COORDS X = %i, lengthx = %i", now.coords[0], lengthx);
-
 				if(now.coords[0]+1<lengthx){ //If I'm not in the limit legth of x:
 
 					coords[0]=now.coords[0]+1; //try new coordinates
 
 					coords[1]=now.coords[1];
-				//	ROS_INFO("2 x_coord = %i , y_coord = %i, map = %i", coords[0], coords[1], map[coords[0]][coords[1]]);
-				//	ROS_INFO("hELOOOO");
 					if(map[coords[0]][coords[1]] <= FREE){ //If that cell is free of obstacles
-					//	ROS_INFO("inside map: x_coord = %i , y_coord = %i", coords[0], coords[1]);
+					
 						h=heuristic(trial.coords,goal_coords); //compute heuristic
 						g = now.g + g_cost(coords,now.coords,now.parent_coords); //update g cost
 						f = g + h; // compute total cost
@@ -548,10 +454,6 @@ int iter = 0;
 						}
 					}
 				}
-			//	ROS_INFO("aFTER IF NUMBER 2");
-
-
-			//	ROS_INFO("aFTER IF NUMBER 4");
 			}
 			//ROS_INFO("No path has been found");
 
@@ -559,7 +461,7 @@ int iter = 0;
 		}
 
 		std::vector<float> getPath (float x_robot, float y_robot, float x_dest, float y_dest, int rows, int columns, float resolution,std::vector<signed char> map_data){
-			//Convert coordinates into cells and send to astar:
+			//Converts the path into a vector containing x and y coordinates of the waypoints
 			std::vector<cell> path_cell;
 
 			nRows = rows;
@@ -569,40 +471,24 @@ int iter = 0;
 			data = map_data;
 
 			path_cell = astar(mToCell(x_robot),mToCell(y_robot),mToCell(x_dest),mToCell(y_dest));
-			//ROS_INFO("number of path points: %i",path_cell.size());
-
+			
 			if (path_cell.size()>1){ //Call the smoothing function just if the path exists
 				path_cell = smoothPath(path_cell);
 			}
 			int size_path = path_cell.size()*2;
 			std::vector<float> path (size_path);
 
-			//ROS_INFO("Path Cell Size: %i",path_cell.size());
-		//	ROS_INFO("Path Size: %i",path.size());
 			int j = 0;
 			for (int i = 0; i<path_cell.size(); i++){
-			//	ROS_INFO("I = %i", i);
-				path[j] = path_cell[i].coords[1]*map_resolution; //y
-				path[j+1] = path_cell[i].coords[0]*map_resolution; //x
-		//		ROS_INFO("\n Path Point: X:%f Y:%f",path[j],path[j+1]);
+				path[j] = path_cell[i].coords[1]*map_resolution;
+				path[j+1] = path_cell[i].coords[0]*map_resolution; 
 				j += 2;
 			}
-			std::reverse(path.begin(), path.end());
-			//ROS_INFO("Test");
-			printMap(path_cell);
-			//ROS_INFO("Print path to hard disk");
+			std::reverse(path.begin(), path.end()); //The path had inverse order, so swap the elements
+			printMap(path_cell); //Print map and path to disk
 			return path;
 
 		}
 
 };
 
-//This was just to test if it compiled
-/*
-int main(){
-std::vector<double> path;
-PathCreator myPath;
-path = myPath.getPath (1, 1, 3, 6);
-return 0;
-}
-*/
