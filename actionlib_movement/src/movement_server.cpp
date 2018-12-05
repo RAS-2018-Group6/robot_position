@@ -40,8 +40,8 @@ private:
     float theta;
 
     int nRows_, nColumns_,s_nRows_,s_nColumns_ ;
-		float map_resolution_,s_map_resolution_ ;
-		std::vector<signed char> data_;
+    float map_resolution_,s_map_resolution_ ;
+    std::vector<signed char> data_;
     std::vector<signed char> smooth_map;
     std::vector<float> nextgoal;
 
@@ -75,6 +75,7 @@ public:
     {
     }
 
+	// Retrieve current position from the particle filter and publish it as feedback.
 
     void poseCallback(const nav_msgs::Odometry::ConstPtr& msg)
     {
@@ -90,6 +91,8 @@ public:
 
         as_.publishFeedback(feedback_);
     }
+	
+	//Receive map information: grid_map
 
     void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
 		{
@@ -100,6 +103,8 @@ public:
 				data_ = msg-> data;
 
 		}
+	
+	//Receive map information: smooth_map
 
     void smoothmapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
 		{
@@ -162,7 +167,8 @@ public:
         return return_points;
     }
 
-
+	// Calculate a straight path
+	// Used for going backwards with the robot
     std::vector<float>  getStraightPath(float distance)
     {
         std::vector<float> return_points;
@@ -209,7 +215,7 @@ public:
           //ROS_INFO("The path has been published");
     }
 
-
+	// Function that is called once the movement_server is called by the client with a goal message
     void executeCB(const actionlib_movement::MovementGoalConstPtr &goal)
     {
         float distance_to_goal, phi, dist;
@@ -233,11 +239,13 @@ public:
 
           if (goal->use_smooth_map == 0)
           {
-          PathCreator current_path (nColumns_);
-          path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
+			  // Calculate path using grid_map
+			  PathCreator current_path (nColumns_);
+			  path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, nRows_, nColumns_,map_resolution_,data_);
 
           }else
           {
+			  // calculate path using smooth_map (no additional obstacles)
             PathCreator current_path (s_nColumns_);
             ROS_INFO("SERVER: Using smooth map.");
             path_points = current_path.getPath(feedback_.current_point.position.x,feedback_.current_point.position.y,goal->final_point.position.x,goal->final_point.position.y, s_nRows_, s_nColumns_,s_map_resolution_,smooth_map);
@@ -250,7 +258,8 @@ public:
         //ROS_INFO("SERVER: Required distance to goal: %f",required_dist);
 
         //ROS_INFO("number of path points: %i",path_points.size());
-        while ( i<= path_points.size() )
+		// Execute path
+		while ( i<= path_points.size() )
         {
             if (nPoints <= 1){
               ROS_INFO("SERVER: no path, %s: Server aborted ", action_name_.c_str());
@@ -265,6 +274,7 @@ public:
               break;
             }
           //ROS_INFO("Entered while Loop");
+			// If goal execution was canceled by the client. Set server to preempted and stop moving the robot.
             if (as_.isPreemptRequested() || !ros::ok())
             {
                 ROS_INFO("SERVER: %s: Server preempted by client ", action_name_.c_str());
@@ -310,12 +320,14 @@ public:
               phi = phi + 2*M_PI;
             }
 
+			// Set velocity command for the motor controller based on the calculated heading change
             vel.linear.x = factor_linear*pow( (M_PI-fabs(phi)) / M_PI ,2);
             vel.angular.z = factor_angular*phi;
             pub_vel.publish(vel);
 
             as_.publishFeedback(feedback_);
 
+			// Calculate distance to goal. Once in range of required_dist set server status to success and stop the robot moving.
             distance_to_goal = sqrt(pow(path_points[nPoints*2-2]-feedback_.current_point.position.x,2)+pow(path_points[nPoints*2-1]-feedback_.current_point.position.y,2));
 
           //ROS_INFO("Current distance to goal: %f",distance_to_goal);
