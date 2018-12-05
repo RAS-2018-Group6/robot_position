@@ -22,7 +22,7 @@
 #include <deque>
 #include <map>
 
-#define EXPLORE 1
+#define EXPLORE 0
 
 class Brain
 {
@@ -395,7 +395,7 @@ public:
 
         float height = map.info.height;
         float width = map.info.width;
-        int k = N_POINTS-1;
+        int k = 0;
         for (int j = 1; j <= sqrt_N_POINTS; j++)
         {
             for (int i = 1; i <= sqrt_N_POINTS; i++)
@@ -403,7 +403,7 @@ public:
                 exploration_targets.points[k].x = i*map.info.resolution*width/(sqrt_N_POINTS+1) + (float) dis(gen);
                 exploration_targets.points[k].y = j*map.info.resolution*height/(sqrt_N_POINTS+1) + (float) dis(gen);
                 //ROS_INFO("Point: (%f,%f)",exploration_targets.points[k].x,exploration_targets.points[k].y);
-                k--;
+                k++;
             }
         }
         ROS_INFO("Evaluating points");
@@ -576,7 +576,7 @@ public:
             average_position_counter = 0;
             object_position_x = 0.0;
             object_position_y = 0.0;
-            goal.back_distance = 0.5;
+            goal.back_distance = 0.8;
             goal.use_smooth_map = 0;
             ROS_INFO("Succeded with object %i", current_object_index+1);
             current_object_index++;
