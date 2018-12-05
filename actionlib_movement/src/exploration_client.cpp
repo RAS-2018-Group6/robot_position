@@ -22,7 +22,7 @@
 #include <deque>
 #include <map>
 
-#define EXPLORE 0
+#define EXPLORE 1
 
 class Brain
 {
